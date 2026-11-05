@@ -561,19 +561,31 @@ def answer(ctx: Ctx, number: int, text: str, origin: str = "cli") -> dict:
     return {"number": number, "resumed_from": resumed}
 
 
-def _design_review(ctx: Ctx, number: int):
+def _design_waiting(ctx: Ctx, number: int, *codes: str):
     run_row = latest_run(ctx, number)
     payload = _blocked_payload(ctx, run_row) if run_row["status"] == "BLOCKED" else {}
-    if payload.get("code") != "design_review":
-        raise OpError(f"la tarea {number} no tiene un diseño esperando tu visto bueno")
+    if payload.get("code") not in codes:
+        what = ("direcciones para elegir" if codes == ("design_choice",)
+                else "un diseño esperando tu visto bueno")
+        raise OpError(f"la tarea {number} no tiene {what}")
     return run_row, payload
+
+
+def _taste(ctx: Ctx, text: str) -> None:
+    from umbra.management import taste
+    taste.record(ctx.root.name, text)
 
 
 def design_approve(ctx: Ctx, number: int, origin: str = "cli") -> dict:
     """La persona da el visto bueno al diseño: Construir maqueta sobre él."""
-    run_row, payload = _design_review(ctx, number)
+    run_row, payload = _design_waiting(ctx, number, "design_review")
     images = payload.get("details", {}).get("images", [])
+    rounds = ctx.conn.execute("SELECT COUNT(*) FROM event WHERE run_id = ? AND type ="
+                              " 'design.changes'", (run_row["id"],)).fetchone()[0]
     add_event(ctx.conn, run_row["id"], "design.approved", origin, actor=actor(), images=images)
+    title = latest_task_title(ctx, number)
+    _taste(ctx, f"Aprobaste el diseño de «{title}» "
+                + ("a la primera." if not rounds else f"tras {rounds} ronda(s) de cambios."))
     stages = [s.name for s in cfg.load_routine(ctx.udir, run_row["routine"]).stages]
     nxt = stages[stages.index("design") + 1] if "design" in stages[:-1] else None
     return {"number": number, "images": images, "resumed_from": retry(ctx, number, nxt,
@@ -581,13 +593,36 @@ def design_approve(ctx: Ctx, number: int, origin: str = "cli") -> dict:
 
 
 def design_changes(ctx: Ctx, number: int, text: str, origin: str = "cli") -> dict:
-    """La persona pide cambios al diseño: el diseñador los aplica y vuelve a preguntar."""
+    """La persona pide cambios al diseño (o a las direcciones): el diseñador los aplica y
+    vuelve a preguntar."""
     text = text.strip()
     if not text:
         raise OpError("di qué quieres cambiar del diseño")
-    run_row, _ = _design_review(ctx, number)
+    run_row, _ = _design_waiting(ctx, number, "design_review", "design_choice")
     add_event(ctx.conn, run_row["id"], "design.changes", origin, actor=actor(), text=text)
+    _taste(ctx, f"Pediste en «{latest_task_title(ctx, number)}»: {text}")
     return {"number": number, "resumed_from": retry(ctx, number, "design", origin=origin)}
+
+
+def design_pick(ctx: Ctx, number: int, option: int, origin: str = "cli") -> dict:
+    """La persona elige una de las direcciones propuestas; el diseñador sigue esa línea."""
+    run_row, payload = _design_waiting(ctx, number, "design_choice")
+    options = payload.get("details", {}).get("options", [])
+    if not 1 <= option <= len(options):
+        raise OpError(f"elige una dirección entre 1 y {len(options)}")
+    chosen = options[option - 1]
+    others = [o["name"] for i, o in enumerate(options, 1) if i != option]
+    add_event(ctx.conn, run_row["id"], "design.chosen", origin, actor=actor(), option=option,
+              name=chosen["name"], images=chosen["images"], rejected=others)
+    _taste(ctx, f"Elegiste la dirección «{chosen['name']}» frente a "
+                + ", ".join(f"«{o}»" for o in others) + ".")
+    return {"number": number, "chosen": chosen["name"],
+            "resumed_from": retry(ctx, number, "design", origin=origin)}
+
+
+def latest_task_title(ctx: Ctx, number: int) -> str:
+    row = ctx.conn.execute("SELECT title FROM task WHERE number = ?", (number,)).fetchone()
+    return row[0] if row else f"tarea {number}"
 
 
 def retry(ctx: Ctx, number: int, from_: str | None = None, foreground: bool = False,
