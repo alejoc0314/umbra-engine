@@ -44,6 +44,13 @@ class Envelope(BaseModel):
     design: list[str] = Field(default_factory=list)  # pantallas aprobadas (rutas del workspace)
 
 
+class DesignOption(BaseModel):
+    """Una dirección visual propuesta para que la persona elija."""
+
+    name: str = Field(description="Nombre corto y evocador de la dirección")
+    images: list[str] = Field(description="Pantallas exportadas de esta dirección (rutas)")
+
+
 class StageOutput(BaseModel):
     """Lo que el agente devuelve (salida estructurada)."""
 
@@ -51,8 +58,14 @@ class StageOutput(BaseModel):
     summary: str = ""
     findings: list[Finding] = Field(default_factory=list)
     questions: list[str] = Field(default_factory=list)
-    needs_design: bool | None = None  # PLAN: la tarea crea o cambia interfaz
-    images: list[str] = Field(default_factory=list)  # DESIGN: pantallas exportadas (rutas)
+    needs_design: bool | None = Field(
+        None, description="Solo PLAN: true si la tarea crea o cambia algo que la persona ve")
+    images: list[str] = Field(
+        default_factory=list,
+        description="Solo DESIGN: rutas (dentro de design/) de las pantallas exportadas")
+    options: list[DesignOption] = Field(
+        default_factory=list,
+        description="Solo DESIGN: 2 o 3 direcciones visuales distintas para que la persona elija")
 
 
 def output_schema() -> dict:

@@ -14,6 +14,7 @@ class Stage(BaseModel):
     fallback_profile: str | None = None  # si el agente falla (p. ej. modelo saturado)
     escalation: list[str] = Field(default_factory=list)  # perfiles más fuertes, en orden
     arbiter: str | None = None  # review: tercer agente cuando constructor y revisor se enredan
+    critic: str | None = None  # design: un segundo agente critica las pantallas con una rúbrica
     max_fix_cycles: int = 2
     block_on: Literal["low", "medium", "high", "critical"] = "high"
     human_approval: bool = True

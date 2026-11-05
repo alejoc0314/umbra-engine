@@ -99,13 +99,25 @@ elif mode == "browse":  # el verificador visita la app y deja una captura fuera 
     shots = Path(envelope["screenshots_dir"])
     (shots / "home.png").write_bytes(b"\x89PNG fake")
     structured_summary = f"visitado {envelope['app_url']} (HTTP {seen}); captura home.png"
-elif mode in ("design", "design_code"):  # el diseñador exporta una pantalla en design/
+elif mode in ("design", "design_code", "design_lint"):  # exporta una pantalla en design/
     Path("design/png").mkdir(parents=True, exist_ok=True)
     n = len(list(Path("design/png").glob("*.png"))) + 1
     Path(f"design/png/pantalla-{n}.png").write_bytes(b"\x89PNG fake")
     if mode == "design_code":  # y se pasa de la raya
         calc.write_text("def add(a, b):\n    return a + b\n")
+    if mode == "design_lint":  # su herramienta detectó un problema (revisión automática)
+        findings = [{"severity": "high", "message": "contraste 2.1:1 en el texto del boton",
+                     "file": f"design/png/pantalla-{n}.png", "rule": "contraste"}]
     structured_images = [f"design/png/pantalla-{n}.png"]
+elif mode == "design_options":  # tres direcciones para que la persona elija
+    Path("design/direcciones").mkdir(parents=True, exist_ok=True)
+    structured_options = []
+    for name in ("Calida", "Nocturna", "Editorial"):
+        Path(f"design/direcciones/{name}.png").write_bytes(b"\x89PNG fake")
+        structured_options.append({"name": name, "images": [f"design/direcciones/{name}.png"]})
+elif mode == "critique":  # el crítico ve algo roto
+    findings = [{"severity": "high", "message": "el texto del boton se corta",
+                 "file": "design/png/pantalla-1.png", "rule": "tipografia"}]
 elif mode == "touch":  # una etapa de solo lectura que escribe
     Path("intruso.txt").write_text("x")
 elif mode == "error":
@@ -115,7 +127,8 @@ elif mode == "error":
 
 structured = {"status": status, "summary": globals().get("structured_summary", f"modo {mode}"),
               "questions": questions, "findings": findings,
-              "images": globals().get("structured_images", [])}
+              "images": globals().get("structured_images", []),
+              "options": globals().get("structured_options", [])}
 if mode == "plan_ui":  # el planificador ve que la tarea toca la interfaz
     structured["needs_design"] = True
 

@@ -69,6 +69,7 @@ COMMANDS = [
     ("usar", "nombre · cambiar de proyecto"),
     ("hacer", "lo que quieres · igual que escribirlo sin más"),
     ("nuevo", "empezar la conversación de cero"),
+    ("gusto", "lo que umbra sabe de tu gusto en diseño"),
     ("actualizar", "instalar la última versión de umbra (el puente vuelve solo)"),
     ("ayuda", "esta lista"),
 ]
@@ -203,6 +204,9 @@ def act(ctx: service.Ctx, data: str, who: str) -> str:
         if kind == "dok":
             r = service.design_approve(ctx, n, ORIGIN)
             return f"Diseño aprobado; la tarea {n} sigue desde {r['resumed_from']}."
+        if kind == "dpick":
+            r = service.design_pick(ctx, n, int(data.split(":", 2)[2]), ORIGIN)
+            return f"Elegiste «{r['chosen']}»; el diseñador de la tarea {n} sigue en esa línea."
         if kind == "dchg":
             service.design_changes(ctx, n, data.split(":", 2)[2], ORIGIN)
             return f"Cambios pedidos al diseñador de la tarea {n}; te mando el diseño nuevo."
@@ -211,7 +215,8 @@ def act(ctx: service.Ctx, data: str, who: str) -> str:
     return f"No entiendo «{data}»."
 
 
-TEXT_REPLIES = {"agent_questions": "answer", "design_review": "dchg"}  # código → acción
+TEXT_REPLIES = {"agent_questions": "answer", "design_review": "dchg",  # código → acción
+                "design_choice": "dchg"}
 
 
 def reply_action(ctx: service.Ctx, n: int) -> str | None:
@@ -484,6 +489,10 @@ def command(state: State, text: str, who: str) -> str:
         return status_text(state)
     if word == "actualizar":
         return update_text()
+    if word == "gusto":
+        from umbra.management import taste
+        return taste.load()[-3500:] or ("Todavía no sé nada de tu gusto: se llena con lo que "
+                                        "eliges, pides y apruebas en los diseños.")
     if word == "tareas":
         ctx = _ctx(state)
         try:

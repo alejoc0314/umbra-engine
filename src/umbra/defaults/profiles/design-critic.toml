@@ -1,0 +1,11 @@
+name         = "design-critic"
+agent        = "claude-code"
+roles        = ["design"]
+model        = "claude-opus-5-5"
+instructions = "design-critic.md"
+actions      = ["read"]
+output       = "stage-output/v1"
+
+[limits]
+max_minutes  = 10
+max_cost_usd = 1.50

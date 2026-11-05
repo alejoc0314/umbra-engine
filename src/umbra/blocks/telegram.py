@@ -222,10 +222,19 @@ def decision_message(run, type_: str, payload: dict, project: str = ""
                 [[("🔁 Reintentar", f"retry:{n}{at}")]])
     if code == "design_review":
         summary = details.get("summary") or ""
+        pending = details.get("pending") or []
         return (head + "El diseño espera tu visto bueno (las pantallas van en las fotos)."
                 + (f"\n{summary}" if summary else "")
+                + ("\n\nEl crítico todavía ve:\n" + "\n".join(f"• {p}" for p in pending[:5])
+                   if pending else "")
                 + "\n\nSi quieres cambios, responde a este mensaje diciendo cuáles.",
                 [[("✅ Aprobar diseño", f"dok:{n}{at}")]])
+    if code == "design_choice":
+        options = details.get("options") or []
+        return (head + f"Hay {len(options)} direcciones de diseño para elegir (van en las "
+                "fotos). Elige una, o responde a este mensaje con lo que quieres en otra ronda.",
+                [[(f"{i} · {o['name']}"[:40], f"dpick:{n}:{i}{at}")]
+                 for i, o in enumerate(options, 1)])
     if code == "findings":
         return (text, [[("🚫 No aplica (todos)", f"waive:{n}{at}"),
                         ("🔁 Reintentar", f"retry:{n}{at}")],

@@ -304,6 +304,28 @@ mensaje con lo que quieres cambiar. Lo aprobado viaja a Construir, que maqueta f
 pantallas, y a Verificar, que compara la app con ellas. El informe lo dice: «Maquetado sobre el
 diseño que aprobaste». Con `human_approval: false` en la etapa, el diseño se aprueba solo.
 
+Antes de preguntarte, el diseño pasa por dos filtros:
+
+- **Revisiones automáticas**: lo que la herramienta del propio diseñador detecta (contraste,
+  texto cortado, objetivos táctiles pequeños) y devuelve como observaciones.
+- **Crítica**: un segundo agente (`design-critic`, Opus) mira las pantallas con una rúbrica:
+  jerarquía, alineación, espaciado, contraste, consistencia, tipografía, objetivos táctiles,
+  estados y oficio.
+
+Las observaciones desde `block_on` (en `feature`, `medium`) devuelven el diseño al diseñador,
+hasta `max_fix_cycles` rondas. Lo que siga pendiente te llega junto con la pregunta («El crítico
+todavía ve…»), y tú decides.
+
+**Direcciones.** La primera vez que un proyecto se diseña, el diseñador propone 2 o 3
+direcciones de la pantalla clave. Te llegan como fotos, una por dirección, con un botón para
+cada una (`umbra design elegir N 2`; en `watch`, `a` y el número). El diseñador sigue la que
+elijas. Responder al mensaje pide otra ronda.
+
+**Tu gusto.** Cada dirección que eliges (frente a las que no), cada cambio que pides y cada
+diseño que apruebas quedan en `~/.umbra/gusto.md`, que es tuyo y vale para todos tus proyectos.
+El diseñador y el crítico lo reciben en cada tarea. Puedes editarlo a mano. `umbra design gusto`
+y `/gusto` en Telegram lo muestran.
+
 ### Decidir desde el teléfono (Telegram)
 
 1. Crea un bot con @BotFather y guarda su token en una variable de entorno (por ejemplo
