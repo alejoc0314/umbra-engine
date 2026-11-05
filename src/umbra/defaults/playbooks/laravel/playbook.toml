@@ -1,0 +1,13 @@
+# Playbook de umbra para Laravel (composer + phpunit/pest + pint + artisan serve).
+name = "laravel"
+scaffold = "composer create-project laravel/laravel . --no-interaction"
+default_routine = "feature"
+
+[commands]
+test = "php artisan test"
+lint = "vendor/bin/pint --test"
+dev = { run = "php artisan serve --port=8765", background = true, url = "http://127.0.0.1:8765" }
+
+[files]
+"ci.yml" = ".github/workflows/ci.yml"
+"AGENTS.md" = "AGENTS.md"

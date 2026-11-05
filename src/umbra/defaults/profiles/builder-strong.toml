@@ -1,0 +1,13 @@
+name           = "builder-strong"
+agent          = "claude-code"
+roles          = ["build"]
+model          = "claude-fable-5-1"
+fallback_model = "claude-opus-5-5"
+effort         = "xhigh"            # cuando el constructor normal agotó sus ciclos
+instructions   = "builder-tdd.md"
+actions        = ["read", "search", "edit", "run_tests"]
+output         = "stage-output/v1"
+
+[limits]
+max_minutes  = 30
+max_cost_usd = 8.00

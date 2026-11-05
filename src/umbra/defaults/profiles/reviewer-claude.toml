@@ -1,0 +1,11 @@
+name         = "reviewer-claude"
+agent        = "claude-code"
+roles        = ["review"]
+model        = "claude-opus-5-5"
+instructions = "reviewer-strict.md"
+actions      = ["read"]
+output       = "stage-output/v1"
+
+[limits]
+max_minutes  = 10
+max_cost_usd = 2.00

@@ -1,0 +1,8 @@
+name: quick
+stages:
+  - name: build
+    profile: builder
+    max_fix_cycles: 2
+    escalation: [builder-strong]
+  - name: ship
+    human_approval: true

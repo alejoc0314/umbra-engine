@@ -1,0 +1,11 @@
+name         = "reviewer-strict"
+agent        = "codex"
+reasoning_effort = "medium"
+roles        = ["review"]
+instructions = "reviewer-strict.md"
+actions      = ["read"]
+output       = "stage-output/v1"
+
+[limits]
+max_minutes  = 10
+max_cost_usd = 1.00

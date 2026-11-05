@@ -1,0 +1,11 @@
+name         = "verifier"
+agent        = "claude-code"
+roles        = ["verify"]
+model        = "sonnet"
+instructions = "verifier.md"
+actions      = ["read", "search", "run_tests", "browse"]
+output       = "stage-output/v1"
+
+[limits]
+max_minutes  = 10
+max_cost_usd = 1.00

@@ -1,0 +1,12 @@
+name         = "builder-tdd"
+agent        = "claude-code"
+roles        = ["build"]
+model          = "claude-fable-5-1"
+fallback_model = "claude-opus-5-5"   # si Fable no está disponible
+instructions = "builder-tdd.md"
+actions      = ["read", "search", "edit", "run_tests"]
+output       = "stage-output/v1"
+
+[limits]
+max_minutes  = 20
+max_cost_usd = 5.00

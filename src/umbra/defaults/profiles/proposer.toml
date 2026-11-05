@@ -1,0 +1,11 @@
+name         = "proposer"
+agent        = "claude-code"
+roles        = ["propose"]
+model        = "sonnet"
+instructions = "proposer.md"
+actions      = ["read", "search"]
+output       = "plan-output/v1"
+
+[limits]
+max_minutes  = 10
+max_cost_usd = 1.00

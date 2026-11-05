@@ -1,0 +1,10 @@
+[project]
+stack = "python"
+base_branch = "main"
+
+[commands]
+test = { run = "uv run pytest -q", safe = true }
+lint = { run = "uv run ruff check .", safe = true }
+
+[policy]
+protected_paths = [".umbra/", ".github/workflows/", ".specify/"]

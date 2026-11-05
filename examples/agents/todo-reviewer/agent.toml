@@ -1,0 +1,4 @@
+name        = "todo-reviewer"
+adapter     = "script"
+command     = ["python", "{agent_dir}/reviewer.py"]
+description = "Revisor de ejemplo: marca como hallazgo cada TODO/FIXME añadido en el diff."

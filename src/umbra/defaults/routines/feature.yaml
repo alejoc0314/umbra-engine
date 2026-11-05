@@ -1,0 +1,23 @@
+name: feature
+stages:
+  - name: plan
+    profile: planner
+  - name: build
+    profile: builder-tdd
+    max_fix_cycles: 2
+    escalation: [builder-strong]   # si agota los ciclos, sigue un perfil más fuerte
+  - name: review
+    profile: reviewer-strict
+    fallback_profile: reviewer-claude   # si Codex falla (modelo saturado), revisa Claude
+    arbiter: arbiter                    # tras agotar ciclos, un tercer agente decide
+    block_on: high
+    max_fix_cycles: 2
+  - name: verify
+    profile: verifier
+    block_on: high
+    max_fix_cycles: 2
+  - name: scan
+    block_on: high
+    max_fix_cycles: 2
+  - name: ship
+    human_approval: true

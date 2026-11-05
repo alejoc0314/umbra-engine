@@ -1,0 +1,12 @@
+# Playbook de umbra para un proyecto Node (npm + vitest + eslint).
+name = "node"
+scaffold = "npm init -y && npm install --save-dev vitest eslint && npm pkg set scripts.test=\"vitest run\" scripts.lint=\"eslint .\" scripts.dev=\"node server.js\""
+default_routine = "feature"
+
+[commands]
+test = "npm test"
+lint = "npm run lint"
+
+[files]
+"ci.yml" = ".github/workflows/ci.yml"
+"AGENTS.md" = "AGENTS.md"

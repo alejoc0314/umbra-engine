@@ -1,0 +1,13 @@
+# Playbook de umbra para un proyecto Python (uv + pytest + ruff).
+name = "python"
+# Se ejecuta una vez en la carpeta nueva (ya con git). Vacío = sin andamiaje.
+scaffold = "uv init --no-workspace --lib . && uv add --dev pytest ruff"
+default_routine = "feature"
+
+[commands]
+test = "uv run pytest -q"
+lint = "uv run ruff check ."
+
+[files]  # archivo del playbook = destino en el repo
+"ci.yml" = ".github/workflows/ci.yml"
+"AGENTS.md" = "AGENTS.md"

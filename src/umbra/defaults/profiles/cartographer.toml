@@ -1,0 +1,12 @@
+name          = "cartographer"
+agent         = "claude-code"
+roles         = ["context"]
+model         = "claude-sonnet-5-5"
+instructions  = "cartographer.md"
+actions       = ["read", "search", "edit"]
+allowed_paths = ["CONTEXT.md"]      # lo único que puede escribir
+output        = "stage-output/v1"
+
+[limits]
+max_minutes  = 5
+max_cost_usd = 1.00

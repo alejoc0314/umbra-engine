@@ -1,0 +1,11 @@
+name         = "arbiter"
+agent        = "claude-code"
+roles        = ["arbiter"]
+model        = "claude-opus-5-5"
+instructions = "arbiter.md"
+actions      = ["read", "search"]
+output       = "stage-output/v1"
+
+[limits]
+max_minutes  = 10
+max_cost_usd = 2.00

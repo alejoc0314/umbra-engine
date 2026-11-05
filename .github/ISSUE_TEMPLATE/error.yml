@@ -1,0 +1,37 @@
+name: Algo no funciona
+description: umbra hace algo distinto de lo esperado
+labels: [error]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Versión
+      description: Salida de `umbra --version`
+    validations:
+      required: true
+  - type: input
+    id: sistema
+    attributes:
+      label: Sistema
+      placeholder: Windows 11 / macOS 15 / Ubuntu 24.04
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducirlo
+      placeholder: "1. umbra task add …\n2. umbra run 1\n3. …"
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué esperabas y qué pasó
+    validations:
+      required: true
+  - type: textarea
+    id: detalle
+    attributes:
+      label: Detalle
+      description: "`umbra explain <n>`, `umbra log <n>` o el error. Revisa que no lleve secretos."
+      render: text

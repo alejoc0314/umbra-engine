@@ -1,0 +1,2 @@
+{"type":"system","subtype":"init","session_id":"sess-1"}
+{"type":"result","subtype":"error_during_execution","is_error":true,"result":"Se cayó el asistente","total_cost_usd":0.01}
