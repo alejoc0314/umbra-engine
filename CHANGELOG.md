@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.21.1 — 2026-11-05
+
 - Por Telegram ya puedes pedir una spec con tus palabras («crea una spec para…»): umbra abre la
   conversación de spec ahí mismo en vez de mandarte a la terminal.
 
