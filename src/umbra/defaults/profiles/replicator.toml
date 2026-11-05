@@ -1,0 +1,13 @@
+name          = "replicator"
+agent         = "claude-code"
+roles         = ["design"]
+model         = "sonnet"
+instructions  = "replicator.md"
+# browse: la app levantada en el navegador. Tu herramienta de diseño llega con [design.mcp.*].
+actions       = ["read", "search", "edit", "browse"]
+allowed_paths = ["design/**"]
+output        = "stage-output/v1"
+
+[limits]
+max_minutes  = 40
+max_cost_usd = 6.00

@@ -7,6 +7,7 @@
 from pathlib import Path
 
 from umbra import service
+from umbra.management import design_systems as ds
 from umbra.management import onboarding as ob
 from umbra.unified.events import add_event
 
@@ -56,6 +57,12 @@ class OnboardTalk:
                 ob.save(ctx.udir, st)
             if st["phase"] == "preguntar":
                 st["questions"] = ob.ask(ctx.conn, ctx.root, ctx.udir, st)
+                if ds.needs_choice(ctx.config):  # el sistema de diseño, primero
+                    options = ds.choices()
+                    st["questions"].insert(0, {
+                        "question": "¿Qué sistema de diseño usa este proyecto?",
+                        "options": [label for _, label in options], "recommended": None,
+                        "system": [key for key, _ in options]})
                 st["answers"], st["phase"] = [], "preguntas"
                 ob.save(ctx.udir, st)
             if st["phase"] == "preguntas":
@@ -116,6 +123,10 @@ class OnboardTalk:
         ctx = service.load(self.root)
         try:
             st = ob.state(ctx.udir)
+            q = st["questions"][len(st["answers"])] if len(st["answers"]) < len(
+                st["questions"]) else {}
+            if q.get("system") and text in q["options"]:
+                ds.set_system(ctx.root, q["system"][q["options"].index(text)])
             st["answers"].append(text)
             ob.save(ctx.udir, st)
         finally:
@@ -143,7 +154,10 @@ class OnboardTalk:
         self.pending, self.done = None, True
         say("Aprobado: el onboarding quedó en el repo"
             + (f" (commit {sha[:10]})" if sha else "") + ". Desde ahora los agentes trabajan "
-            "con ese contexto y esa constitución.")
+            "con ese contexto y esa constitución."
+            + ("\n\n¿Replico también el diseño actual de la app para poder referenciar sus "
+               "vistas? `umbra design replicar` o /replicar."
+               if (self.root / "specs" / "000-linea-base" / "vistas.md").is_file() else ""))
 
     def text(self, text: str, say) -> None:
         kind = (self.pending or ("",))[0]
