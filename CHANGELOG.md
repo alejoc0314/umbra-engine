@@ -7,6 +7,9 @@ versión publicada.
 
 ## Sin publicar
 
+- `[design] starter`: el archivo del que parte el diseño de cada proyecto (p. ej. la librería de
+  componentes de tu equipo) se copia a `design/` la primera vez y el diseñador trabaja sobre él.
+
 ## v0.23.0 — 2026-11-05
 
 - umbra trae un **diseñador estándar** que no depende de ninguna herramienta: diseña en HTML y

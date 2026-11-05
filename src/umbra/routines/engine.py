@@ -312,6 +312,7 @@ class Engine:
             return Outcome("next")
         for name, server in (self.project.get("design", {}).get("mcp") or {}).items():
             profile.mcp[name] = McpServer(**server)  # tu herramienta: [design.mcp.<nombre>]
+        self.design_starter(run_id, wt)
         run = self.run_row(run_id)
         feedback = self.design_feedback(run_id)
         cycle, blocking, findings = 0, [], []
@@ -391,6 +392,24 @@ class Engine:
                            {"stage": "critic", "agent": critic.agent})
         self.finish_attempt(attempt_id, "done")  # hallazgos de diseño: no van a Construir
         return list(result.output.findings)
+
+    def design_starter(self, run_id: str, wt: Path) -> None:
+        """`[design] starter`: el archivo base del proyecto (p. ej. la librería de componentes de
+        tu equipo) se copia a `design/<proyecto>.<ext>` si design/ aún no tiene uno de ese tipo:
+        el diseñador trabaja sobre esa copia."""
+        raw = self.project.get("design", {}).get("starter")
+        if not raw:
+            return
+        src = Path(raw).expanduser()
+        src = src if src.is_absolute() else self.root / src
+        folder = wt / DESIGN_DIR
+        if not src.is_file() or any(folder.glob(f"*{src.suffix}")):
+            return
+        folder.mkdir(parents=True, exist_ok=True)
+        dest = folder / f"{self.root.name}{src.suffix}"
+        shutil.copy2(src, dest)
+        self.event(run_id, "design.starter", source=src.as_posix(),
+                   path=dest.relative_to(wt).as_posix())
 
     def design_guides(self) -> str:
         """`[design] guides`: cómo usar tu herramienta y tu sistema de diseño (rutas relativas
