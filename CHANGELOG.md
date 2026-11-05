@@ -17,6 +17,13 @@ versión publicada.
 - **Paquetes**: `umbra pack sync <repo>` instala perfiles, rutinas y playbooks que viven fuera de
   umbra (lo privado de tu equipo) y `umbra pack list` los muestra. Los perfiles pueden declarar
   sus propios servidores MCP.
+- El diseño pasa por un **crítico** con una rúbrica (jerarquía, alineación, espaciado, contraste,
+  consistencia…) y por las revisiones automáticas de la herramienta del diseñador. Lo
+  importante vuelve a corregirse antes de preguntarte.
+- La primera vez que un proyecto se diseña, eliges entre 2 o 3 **direcciones** (fotos y un botón
+  por cada una en Telegram, o `umbra design elegir N 2`).
+- umbra **aprende tu gusto**: lo que eliges, pides y apruebas queda en `~/.umbra/gusto.md` y lo
+  reciben el diseñador y el crítico (`umbra design gusto`, `/gusto`).
 
 ## v0.21.1 — 2026-11-05
 

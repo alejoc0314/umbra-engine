@@ -4,6 +4,9 @@ stages:
     profile: planner
   - name: design      # solo si el plan dice que toca la interfaz y hay perfil «designer»
     profile: designer # (no viene con umbra: lo trae un paquete, umbra pack sync)
+    critic: design-critic   # mira las pantallas con una rúbrica y lo devuelve a corregir
+    block_on: medium
+    max_fix_cycles: 2
   - name: build
     profile: builder-tdd
     max_fix_cycles: 2

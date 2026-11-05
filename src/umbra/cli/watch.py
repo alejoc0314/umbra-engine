@@ -265,7 +265,7 @@ class WatchApp(App):
             d = self._decision
             if action == "accept" and self._kind != "draft":
                 # autorizar si la política frenó algo, o aprobar un diseño que espera
-                return bool(d.get("paths")) or d.get("code") == "design_review"
+                return bool(d.get("paths")) or d.get("code") in ("design_review", "design_choice")
             if action == "findings":
                 return d.get("open_findings", 0) > 0
             if action == "approve_all":
@@ -296,6 +296,8 @@ class WatchApp(App):
     # ---------- acciones ----------
     def action_accept(self) -> None:
         n = self.selected
+        if self._decision.get("code") == "design_choice":
+            return self._design_pick()
         if self._decision.get("code") == "design_review":
             return self._do(f"umbra design ok {n}",
                             lambda ctx: service.design_approve(ctx, n, ORIGIN),
@@ -338,6 +340,20 @@ class WatchApp(App):
         self.push_screen(AskText(f"El agente pregunta:\n{questions}\n\nTu respuesta:"),
                          with_text)
 
+    def _design_pick(self) -> None:
+        """La persona elige una de las direcciones propuestas."""
+        n = self.selected
+
+        def with_text(text: str | None) -> None:
+            if text and text.strip().isdigit():
+                option = int(text.strip())
+                self._do(f"umbra design elegir {n} {option}",
+                         lambda ctx: service.design_pick(ctx, n, option, ORIGIN),
+                         "Elegida: el diseñador sigue en esa línea.")
+
+        self.push_screen(AskText("¿Qué dirección eliges? Escribe su número (están en la "
+                                 "evidencia, tecla e)."), with_text)
+
     def _design_changes(self) -> None:
         """La persona pide cambios al diseño; el diseñador los aplica y vuelve a preguntar."""
         n = self.selected
@@ -366,7 +382,7 @@ class WatchApp(App):
             return
         if self._decision.get("code") == "agent_questions":
             return self._answer()
-        if self._decision.get("code") == "design_review":
+        if self._decision.get("code") in ("design_review", "design_choice"):
             return self._design_changes()
         ctx = service.load(self.root)
         try:
@@ -834,7 +850,11 @@ class WatchApp(App):
                 add("o", "Retomar con tu arreglo")
             if d.get("paths"):
                 add("a", "Autorizar cambiar " + ", ".join(d["paths"]))
-            if d.get("code") == "design_review":
+            if d.get("code") == "design_choice":
+                add("a", "Elegir una dirección")
+                add("r", "Otra ronda")
+                add("e", "Ver las direcciones")
+            elif d.get("code") == "design_review":
                 add("a", "Aprobar el diseño")
                 add("r", "Pedir cambios")
                 add("e", "Ver las pantallas")

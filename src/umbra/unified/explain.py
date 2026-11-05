@@ -23,7 +23,8 @@ RUN_STATES = {
     "CANCELLED": "Cancelada",
     "SUCCEEDED": "Integrada",
 }
-STAGES = {"plan": "Planificar", "design": "Diseñar", "build": "Construir", "review": "Revisar",
+STAGES = {"plan": "Planificar", "design": "Diseñar", "critic": "Criticar el diseño",
+          "build": "Construir", "review": "Revisar",
           "verify": "Verificar", "scan": "Escanear seguridad", "ship": "Entregar",
           "arbiter": "Arbitrar",
           "summary": "Resumir"}
@@ -273,6 +274,12 @@ REASONS = {
         "maquetará sobre lo que apruebes.",
         [("Ver las pantallas", "umbra evidence {n}"), ("Aprobarlo", "umbra design ok {n}"),
          ("Pedir cambios", 'umbra design cambios {n} "..."')]),
+    "design_choice": _simple(
+        "El diseñador propone varias direcciones visuales: elige una.",
+        "Es la primera vez que este proyecto se diseña: antes de seguir, tú decides el estilo. "
+        "Lo que elijas queda en tu gusto para los próximos diseños.",
+        [("Verlas", "umbra evidence {n}"), ("Elegir la 1", "umbra design elegir {n} 1"),
+         ("Pedir otra ronda", 'umbra design cambios {n} "..."')]),
     "design_outside": _simple(
         "El diseñador tocó archivos fuera de design/.",
         "Diseñar solo puede cambiar la carpeta design/: el código lo escribe el constructor.",
@@ -291,6 +298,7 @@ BRIEF = {  # versión corta para tablas y listas
     "tests_failing": "los tests siguen fallando",
     "agent_questions": "el agente tiene preguntas",
     "design_review": "el diseño espera tu visto bueno",
+    "design_choice": "elige una dirección de diseño",
     "design_outside": "el diseñador tocó código",
     "design_empty": "el diseñador no dejó pantallas",
     "findings": "hay problemas sin resolver",
@@ -695,6 +703,19 @@ def narrate(event: dict) -> str | None:
         case "design.approved":
             return ("  Diseño aprobado automáticamente." if p.get("auto")
                     else f"  Aprobaste el diseño ({p.get('actor')}): se maqueta sobre él.")
+        case "design.options":
+            n = len(p.get("options") or [])
+            return f"  El diseñador propone {n} direcciones para que elijas."
+        case "design.chosen":
+            return f"  Elegiste la dirección «{p.get('name')}»."
+        case "design.critique":
+            if not p.get("findings"):
+                return "  Crítica del diseño: sin observaciones ✓"
+            more = (" Vuelve al diseñador para corregir." if p.get("blocking") else "")
+            return (f"  Crítica del diseño: {p.get('findings')} observaciones, "
+                    f"{p.get('blocking')} importantes.{more}")
+        case "design.critic_failed":
+            return f"  El crítico falló ({p.get('error')}); el diseño sigue sin su crítica."
         case "design.changes":
             return f"  Pediste cambios al diseño: {p.get('text')}"
         case "takeover.opened":

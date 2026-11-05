@@ -20,7 +20,7 @@ from umbra.contracts.envelope import Envelope, Finding, StageOutput, TaskInfo
 from umbra.contracts.profile import Profile
 from umbra.contracts.routine import Stage
 from umbra.contracts.summary import SummaryOutput
-from umbra.management import memory
+from umbra.management import memory, taste
 from umbra.unified import config as cfg
 from umbra.unified.events import add_event
 from umbra.unified.store import new_id, now, to_cost
@@ -137,10 +137,16 @@ class Engine:
             reason = f" {payload['reason']}" if payload.get("reason") else ""
             notify.send(f"umbra · tarea {run['number']}",
                         f"{run['title']}: {ALERTS[type_]}.{reason}"[:250])
-        if payload.get("code") == "design_review" and (tg := telegram.settings(self.project)):
+        code = payload.get("code")
+        if code in ("design_review", "design_choice") and (tg := telegram.settings(self.project)):
             wt = Path(run["worktree"] or "")  # las pantallas, antes de la pregunta
-            telegram.send_photos(tg, [wt / p for p in payload["details"].get("images", [])],
-                                 f"Diseño de la tarea #{run['number']} {run['title']}")
+            details = payload["details"]
+            albums = ([(f"Diseño de la tarea #{run['number']} {run['title']}",
+                        details.get("images", []))] if code == "design_review" else
+                      [(f"Dirección {i}: {o['name']}", o["images"])
+                       for i, o in enumerate(details.get("options", []), 1)])
+            for caption, images in albums:
+                telegram.send_photos(tg, [wt / p for p in images], caption)
         if mid := telegram.notify_run(self.project, run, type_, payload,
                                       self.root.name):  # al teléfono, siempre
             add_event(self.conn, run_id, "telegram.sent", self.origin, message_id=mid)
@@ -287,8 +293,11 @@ class Engine:
     # ---------- DESIGN ----------
     def design(self, run_id: str, stage: Stage, wt: Path) -> Outcome:
         """Si la tarea toca interfaz y hay diseñador (un perfil, p. ej. de un paquete), diseña
-        en `design/` y espera el visto bueno de la persona antes de construir."""
+        en `design/`; el crítico y las revisiones del propio diseñador lo devuelven a corregir
+        hasta `max_fix_cycles`; si propone direcciones, la persona elige; al final espera su
+        visto bueno antes de construir."""
         self.interrupt_stale(run_id, "design")
+        self.interrupt_stale(run_id, "critic")
         plan = self.last_event(run_id, "plan.ready")
         if not (plan and json.loads(plan["payload"]).get("needs_design")):
             self.event(run_id, "design.skipped", reason="la tarea no toca la interfaz")
@@ -301,54 +310,119 @@ class Engine:
                               ", p. ej. desde un paquete: umbra pack sync)")
             return Outcome("next")
         run = self.run_row(run_id)
-        attempt_id, result = self.agent_attempt(run, "design", profile, wt,
-                                                self.design_feedback(run_id))
+        feedback = self.design_feedback(run_id)
+        cycle, blocking, findings = 0, [], []
+        while True:
+            attempt_id, result = self.agent_attempt(run, "design", profile, wt, feedback)
+            if not result.ok:
+                return agent_failure(result)
+            out = result.output
+            if out.status == "blocked":
+                self.finish_attempt(attempt_id, "blocked")
+                return Outcome("BLOCKED", "el diseñador necesita aclaraciones: "
+                               + "; ".join(out.questions), "agent_questions",
+                               {"stage": "design", "questions": out.questions})
+            outside = [p for p in uncommitted(wt) if not p.startswith(f"{DESIGN_DIR}/")]
+            if outside:
+                self.finish_attempt(attempt_id, "policy_violation")
+                return Outcome("BLOCKED", f"el diseñador tocó archivos fuera de {DESIGN_DIR}/: "
+                               + ", ".join(outside), "design_outside",
+                               {"stage": "design", "files": outside})
+            if git.has_changes(wt):
+                git.commit_all(wt, f"umbra: diseño de {run['title']} (intento {attempt_id[:8]})")
+            options = [{"name": o.name, "images": [p for p in o.images if (wt / p).is_file()]}
+                       for o in out.options]
+            options = [o for o in options if o["images"]]
+            images = [p for p in out.images if (wt / p).is_file()]
+            if not images and len(options) < 2:
+                self.finish_attempt(attempt_id, "no_changes")
+                return Outcome("BLOCKED", "el diseñador no dejó pantallas exportadas",
+                               "design_empty", {"stage": "design"})
+            self.finish_attempt(attempt_id, "done")
+            self.record_design(run_id, attempt_id, wt,
+                               images + [p for o in options for p in o["images"]])
+            if len(options) >= 2:  # direcciones: la persona elige antes de seguir
+                self.event(run_id, "design.options", options=options, summary=out.summary)
+                return Outcome("BLOCKED", "hay direcciones de diseño para elegir",
+                               "design_choice",
+                               {"stage": "design", "options": options, "summary": out.summary})
+            # revisiones automáticas (lo que la herramienta del diseñador detectó) y crítica
+            findings = list(out.findings)
+            if stage.critic:
+                review = self.critique(run, stage, wt, images)
+                if isinstance(review, Outcome):
+                    return review
+                findings += review
+            blocking = [f for f in findings if SEVERITY[f.severity] >= SEVERITY[stage.block_on]]
+            self.event(run_id, "design.critique", cycle=cycle, findings=len(findings),
+                       blocking=len(blocking), items=[_describe(f) for f in findings][:20])
+            if not blocking or cycle >= stage.max_fix_cycles:
+                break
+            cycle += 1
+            feedback = ["Correcciones a tu diseño, de la crítica y de las revisiones automáticas. "
+                        "Aplícalas sobre lo que ya está en design/ y vuelve a exportar:\n"
+                        + "\n".join(f"- {_describe(f)}" for f in blocking)]
+        pending = [_describe(f) for f in blocking]
+        self.event(run_id, "design.ready", images=images, summary=out.summary, pending=pending)
+        if not stage.human_approval:
+            self.event(run_id, "design.approved", images=images, auto=True)
+            return Outcome("next")
+        return Outcome("BLOCKED", "el diseño espera tu visto bueno", "design_review",
+                       {"stage": "design", "images": images, "summary": out.summary,
+                        "pending": pending})
+
+    def critique(self, run, stage: Stage, wt: Path, images: list[str]) -> list[Finding] | Outcome:
+        """Un segundo agente, de solo lectura, mira las pantallas con una rúbrica. Si falla por
+        algo técnico, el diseño sigue sin su crítica (no frena a la persona)."""
+        try:
+            critic = self.profile(stage.critic)
+        except cfg.ConfigError:
+            return []
+        attempt_id, result = self.agent_attempt(run, "critic", critic, wt, design=images)
         if not result.ok:
-            return agent_failure(result)
-        if result.output.status == "blocked":
-            self.finish_attempt(attempt_id, "blocked")
-            return Outcome("BLOCKED", "el diseñador necesita aclaraciones: "
-                           + "; ".join(result.output.questions), "agent_questions",
-                           {"stage": "design", "questions": result.output.questions})
-        outside = [p for p in uncommitted(wt) if not p.startswith(f"{DESIGN_DIR}/")]
-        if outside:
-            self.finish_attempt(attempt_id, "policy_violation")
-            return Outcome("BLOCKED", f"el diseñador tocó archivos fuera de {DESIGN_DIR}/: "
-                           + ", ".join(outside), "design_outside",
-                           {"stage": "design", "files": outside})
+            self.event(run["id"], "design.critic_failed", error=result.error)
+            return []
         if git.has_changes(wt):
-            git.commit_all(wt, f"umbra: diseño de {run['title']} (intento {attempt_id[:8]})")
-        images = [p for p in result.output.images if (wt / p).is_file()]
-        if not images:
-            self.finish_attempt(attempt_id, "no_changes")
-            return Outcome("BLOCKED", "el diseñador no dejó pantallas exportadas",
-                           "design_empty", {"stage": "design"})
-        self.finish_attempt(attempt_id, "done")
-        for p in images:
+            self.finish_attempt(attempt_id, "policy_violation")
+            return Outcome("BLOCKED", "el crítico modificó el workspace", "readonly_modified",
+                           {"stage": "critic", "agent": critic.agent})
+        self.finish_attempt(attempt_id, "done")  # hallazgos de diseño: no van a Construir
+        return list(result.output.findings)
+
+    def record_design(self, run_id: str, attempt_id: str, wt: Path, paths: list[str]) -> None:
+        head = git.head(wt)
+        for p in dict.fromkeys(paths):
             f = wt / p
             self.conn.execute(
                 "INSERT INTO artifact (id, run_id, attempt_id, kind, path, checksum, tested_sha,"
                 " created_at) VALUES (?, ?, ?, 'design', ?, ?, ?, ?)",
                 (new_id(), run_id, attempt_id, f.as_posix(),
-                 hashlib.sha256(f.read_bytes()).hexdigest(), git.head(wt), now()))
-        self.event(run_id, "design.ready", images=images, summary=result.output.summary)
-        if not stage.human_approval:
-            self.event(run_id, "design.approved", images=images, auto=True)
-            return Outcome("next")
-        return Outcome("BLOCKED", "el diseño espera tu visto bueno", "design_review",
-                       {"stage": "design", "images": images,
-                        "summary": result.output.summary})
+                 hashlib.sha256(f.read_bytes()).hexdigest(), head, now()))
 
     def design_feedback(self, run_id: str) -> list[str]:
-        """Lo que la persona pidió cambiar desde el último diseño."""
-        since = self.since(run_id, "design.ready")
-        asks = [json.loads(r["payload"])["text"] for r in self.conn.execute(
-            "SELECT payload FROM event WHERE run_id = ? AND type = 'design.changes'"
-            " AND created_at > ? ORDER BY id", (run_id, since))]
-        if not asks:
-            return []
-        return ["La persona revisó tu diseño anterior (sigue en design/) y pide estos cambios; "
-                "aplícalos sobre él, no empieces de cero: " + " ".join(asks)]
+        """Lo que la persona decidió desde el último diseño: la dirección que eligió y los
+        cambios que pidió. Si el repo aún no tiene dirección visual, se piden direcciones."""
+        since = self.since(run_id, "design.ready", "design.options")
+        out = []
+        for r in self.conn.execute(
+                "SELECT type, payload FROM event WHERE run_id = ? AND type IN"
+                " ('design.chosen', 'design.changes') AND created_at > ? ORDER BY id",
+                (run_id, since)):
+            p = json.loads(r["payload"])
+            if r["type"] == "design.chosen":
+                out.append(f"La persona eligió la dirección «{p['name']}» (pantallas: "
+                           f"{', '.join(p.get('images', []))}). Desarrolla la tarea en esa línea "
+                           "y descarta las otras; no vuelvas a proponer direcciones.")
+            else:
+                out.append("La persona revisó tu diseño anterior (sigue en design/) y pide estos "
+                           f"cambios; aplícalos sobre él, no empieces de cero: {p['text']}")
+        if not out and not self.conn.execute(
+                "SELECT 1 FROM event WHERE type IN ('design.chosen', 'design.approved') LIMIT 1"
+        ).fetchone():
+            out.append("Este proyecto todavía no tiene una dirección visual aprobada: propón 2 o "
+                       "3 direcciones claramente distintas de la pantalla clave en `options` "
+                       "(nombre y pantallas cada una). La persona elegirá una.")
+        return out
 
     def approved_design(self, run_id: str) -> list[str]:
         row = self.last_event(run_id, "design.approved")
@@ -698,8 +772,8 @@ class Engine:
                       feedback: list[str] | None = None,
                       previous: list[Finding] | None = None,
                       output_model: type[BaseModel] = StageOutput,
-                      diff: str | None = None, app_url: str | None = None
-                      ) -> tuple[str, AgentResult]:
+                      diff: str | None = None, app_url: str | None = None,
+                      design: list[str] | None = None) -> tuple[str, AgentResult]:
         attempt_no = self.conn.execute(
             "SELECT COALESCE(MAX(attempt_no), 0) + 1 FROM attempt WHERE run_id = ? AND stage = ?",
             (run["id"], stage)).fetchone()[0]
@@ -723,7 +797,10 @@ class Engine:
             else None,
             diff=diff, feedback=feedback or [], findings=previous or [],
             project_notes=memory.project_notes(self.root, self.udir), app_url=app_url,
-            design=self.approved_design(run["id"]) if stage in ("build", "verify") else [])
+            design=design if design is not None else
+            self.approved_design(run["id"]) if stage in ("build", "verify") else [])
+        if stage in ("design", "critic") and (likes := taste.load()):
+            envelope.project_notes = "\n\n".join(filter(None, [envelope.project_notes, likes]))
         shots = None
         if app_url:  # las capturas caen fuera del workspace: no ensucian el diff
             shots = self.udir / "artifacts" / f"{attempt_id}-shots"

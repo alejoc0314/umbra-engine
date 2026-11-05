@@ -57,7 +57,7 @@ def test_task_without_ui_skips_the_designer_even_if_installed(env):
 def test_design_waits_for_approval_then_build_follows_it(env, tg):
     pack = install_pack()
     sync_worker(env)  # lo que se encola desde el teléfono corre aquí mismo
-    env.mode("plan_ui", "design", "design", "ok", "noop")
+    env.mode("plan_ui", "design", "noop", "design", "noop", "ok", "noop")  # noop: el crítico
     feature_task(env)
     assert run_feature(env) == "BLOCKED"
     call = env.claude_calls()[1]  # el diseñador, con el MCP que declara su perfil
@@ -79,15 +79,16 @@ def test_design_waits_for_approval_then_build_follows_it(env, tg):
     tg.say("mas contraste en el boton", reply_to=decision["text"])
     poll(env, tg, st)
     assert env.run()["status"] == "BLOCKED"  # segunda versión, otra vez a tu visto bueno
-    assert "mas contraste en el boton" in env.claude_calls()[2]["prompt"]
+    assert "mas contraste en el boton" in env.claude_calls()[3]["prompt"]
     tg.tap("dok:1@repo")
     poll(env, tg, st)
     assert env.run()["status"] == "WAITING_APPROVAL"
     stages = [s for s, _ in env.attempts()]
-    assert stages == ["plan", "design", "design", "build", "review", "verify", "scan"]
-    build = env.claude_calls()[3]["prompt"]
+    assert stages == ["plan", "design", "critic", "design", "critic", "build", "review",
+                      "verify", "scan"]
+    build = env.claude_calls()[5]["prompt"]
     assert "aprobado por la persona" in build and "design/png/pantalla-2.png" in build
-    assert "design/png/pantalla-2.png" in env.claude_calls()[4]["prompt"]  # el verificador
+    assert "design/png/pantalla-2.png" in env.claude_calls()[6]["prompt"]  # el verificador
     assert "design/png/pantalla-1.png" in json.loads(
         env.conn.execute("SELECT payload FROM event WHERE type = 'design.ready'").fetchone()[0]
     )["images"]
@@ -106,7 +107,7 @@ def test_designer_may_only_touch_the_design_folder(env):
 def test_cli_approves_and_asks_changes(env):
     install_pack()
     sync_worker(env)
-    env.mode("plan_ui", "design", "design", "ok", "noop")
+    env.mode("plan_ui", "design", "noop", "design", "noop", "ok", "noop")
     feature_task(env)
     run_feature(env)
     out = env.umbra("design", "cambios", "1", "menos texto").output
