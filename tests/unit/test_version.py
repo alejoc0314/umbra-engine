@@ -61,6 +61,30 @@ def test_windows_handoff_installs_the_tag_and_reports_back():
     assert "tool install --force 'git+https://github.com/alejoc0314/umbra-engine@v0.9.0'" in script
     assert "C:\\log''s.txt" in script  # comilla simple escapada para PowerShell
     assert "Ya estás en v0.9.0" in script and "no se pudo actualizar" in script
+    assert "@" + "VERSION@" not in script and "@" + "PID@" not in script  # sin marcadores
+    assert "if ($false)" in script  # sin puente que esperar
+
+
+def test_handoff_waits_for_the_bridge_checks_the_version_and_rolls_back():
+    script = version.handoff_script(
+        "0.22.0", "uv.exe", "log.txt", previous="0.21.1",
+        bridge={"pid": 4321, "root": "C:/apps/repo"},
+        tg={"token_env": "MI_TOKEN", "chat_id": "77"},
+        tool=r"C:\uv\tools\umbra-engine", launcher=r"C:\bin\umbra.exe")
+    order = ["Get-Process -Id 4321", "Stop-Process -Id 4321", "(Busy).Count",
+             "umbra-engine@v0.22.0", "--version", "umbra-engine@v0.21.1"]
+    pos = [script.index(s) for s in order]
+    assert pos == sorted(pos)  # espera al puente, a que nada use umbra, instala, comprueba, vuelve
+    assert r"$tool = 'C:\uv\tools\umbra-engine'" in script
+    assert "-WorkingDirectory 'C:/apps/repo'" in script  # relanza el puente en su carpeta
+    assert "GetEnvironmentVariable('MI_TOKEN')" in script and "$chat = '77'" in script
+    assert "sigues en v0.21.1" in script and "El puente de Telegram volvió" in script
+    assert r"v0\.22\.0\b" in script
+
+
+def test_handoff_without_previous_version_has_no_rollback():
+    script = version.handoff_script("0.22.0", "uv.exe", "log.txt")
+    assert script.count("tool install --force") == 1 and "sigues en" not in script
 
 
 def test_label_marks_the_development_copy(monkeypatch):
@@ -74,7 +98,7 @@ def test_label_marks_the_development_copy(monkeypatch):
 def remote(monkeypatch):
     installed = []
     monkeypatch.setattr(version, "notes", lambda v: f"- notas de {v}")
-    monkeypatch.setattr(version, "install", lambda v: installed.append(v) or "instalando")
+    monkeypatch.setattr(version, "install", lambda v, *a: installed.append(v) or "instalando")
     monkeypatch.setattr(version, "is_dev", lambda: False)
     monkeypatch.setattr(selfupdate, "_busy_here", lambda: [])
     return installed
