@@ -2,8 +2,8 @@ name: feature
 stages:
   - name: plan
     profile: planner
-  - name: design      # solo si el plan dice que toca la interfaz y hay perfil «designer»
-    profile: designer # (no viene con umbra: lo trae un paquete, umbra pack sync)
+  - name: design      # solo si el plan dice que la tarea toca la interfaz
+    profile: designer # conecta tu herramienta con [design.mcp.<nombre>] (docs/usage.md)
     critic: design-critic   # mira las pantallas con una rúbrica y lo devuelve a corregir
     block_on: medium
     max_fix_cycles: 2

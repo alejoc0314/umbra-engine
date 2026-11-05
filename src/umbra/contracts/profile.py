@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-ACTIONS = ("read", "search", "edit", "run_tests", "run_lint", "browse")
+ACTIONS = ("read", "search", "edit", "run_tests", "run_lint", "browse", "render")
 
 
 class Limits(BaseModel):
