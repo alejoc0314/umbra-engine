@@ -2,6 +2,7 @@
 
 import json
 import shutil
+import sys
 from decimal import Decimal
 
 from pydantic import BaseModel, ValidationError
@@ -40,9 +41,14 @@ def allowed_tools(actions: list[str], commands: list[str],
     return list(dict.fromkeys(tools))
 
 
-def playwright_server(screenshots_dir: str | None) -> dict:
-    """Servidor MCP de Playwright (sin cabeza); las capturas caen en `screenshots_dir`."""
+def playwright_server(screenshots_dir: str | None, files: bool = False) -> dict:
+    """Servidor MCP de Playwright (sin cabeza); las capturas caen en `screenshots_dir`. Con
+    `files`, puede abrir archivos locales (`file://`): las maquetas HTML del diseñador."""
     args = ["-y", "@playwright/mcp@latest", "--headless"]
+    if sys.platform == "win32":  # Edge viene con Windows; Chrome (el de Playwright) no siempre
+        args += ["--browser", "msedge"]
+    if files:
+        args.append("--allow-unrestricted-file-access")
     if screenshots_dir:
         args += ["--output-dir", screenshots_dir]
     return {"command": "npx", "args": args}
@@ -59,6 +65,9 @@ def mcp_servers(req: AgentRun) -> dict[str, dict]:
     servers = {}
     if "browse" in p.actions and req.envelope.app_url:  # solo con una app que visitar
         servers["playwright"] = playwright_server(req.envelope.screenshots_dir)
+    elif "render" in p.actions:  # el diseñador fotografía sus maquetas HTML
+        servers["playwright"] = playwright_server(
+            (req.workspace / "design" / "png").as_posix(), files=True)
     marks = {"{profile_dir}": p.source.parent.as_posix() if p.source else "",
              "{workspace}": req.workspace.as_posix()}
 

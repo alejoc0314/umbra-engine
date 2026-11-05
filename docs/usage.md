@@ -285,10 +285,32 @@ desarrollo no respondió»). Sin `dev`, Verificar funciona como siempre.
 ### Diseñar antes de construir
 
 En la rutina `feature`, después de Planificar va **Diseñar**. Corre solo si el planificador dice
-que la tarea toca lo que la persona ve (pantallas, componentes, estilos, web o móvil) y si hay
-un perfil `designer` instalado. umbra no trae diseñador: lo aporta un paquete (ver «Paquetes»
-en la sección 7) o tu proyecto (`.umbra/profiles/designer.toml`). Sin él, la etapa se salta y
-todo sigue como antes.
+que la tarea toca lo que la persona ve (pantallas, componentes, estilos, web o móvil); si no,
+se salta.
+
+umbra trae un diseñador estándar (`designer`, Opus) que no depende de ninguna herramienta. Por
+defecto diseña en HTML y CSS dentro de `design/maquetas/` y fotografía cada pantalla con el
+navegador (Playwright; en Windows usa Edge). La primera vez deja el sistema del proyecto en
+`design/sistema.md`: paleta, tipografía, espaciado, radios y componentes. Las tareas siguientes
+lo respetan.
+
+**Conectar tu herramienta** (Figma, Pencil o cualquiera con servidor MCP) no requiere tocar el
+perfil. Se hace en `~/.umbra/local.toml`, para ti en todos tus proyectos, o en
+`.umbra/project.toml`, para un proyecto:
+
+```toml
+[design]
+guides = ["~/.umbra/design/mi-equipo.md"]   # cómo usar tu herramienta, tu marca, tu librería
+
+[design.mcp.mi-herramienta]
+command = "mi-herramienta-mcp"
+args = ["--modo-agente"]
+env = { ALGUNA_OPCION = "1" }
+```
+
+El diseñador recibe esos servidores (además del navegador) y las guías; el crítico también lee
+las guías. Para cambiar el perfil entero, pon tu `designer.toml` en el proyecto, en `~/.umbra`
+o en un paquete.
 
 El diseñador solo puede tocar la carpeta `design/` del proyecto y debe devolver las pantallas
 exportadas (`images`). Después la tarea se detiene esperando tu visto bueno, y las pantallas te
