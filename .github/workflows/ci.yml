@@ -11,7 +11,14 @@ permissions:
 jobs:
   tests:
     runs-on: windows-latest  # ponytail: solo Windows, que es donde se usa hoy; sumar ubuntu/macos cuando pasen ahí
+    timeout-minutes: 30
+    env:  # los tests crean repos y commits: el runner no trae identidad de git
+      GIT_AUTHOR_NAME: ci
+      GIT_AUTHOR_EMAIL: ci@example.com
+      GIT_COMMITTER_NAME: ci
+      GIT_COMMITTER_EMAIL: ci@example.com
     steps:
+      - run: tzutil /s "SA Pacific Standard Time"  # las capturas de watch muestran la hora local (-05:00)
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv sync
