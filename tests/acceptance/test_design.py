@@ -37,7 +37,12 @@ def flag(args, name):
 
 
 def test_without_designer_or_without_ui_the_stage_is_skipped(env):
-    env.mode("plan_ui", "ok", "noop")  # toca la interfaz, pero no hay diseñador instalado
+    env.mode("plan_ui", "ok", "noop")  # toca la interfaz, pero el perfil no existe
+    routines = env.root / ".umbra" / "routines"
+    routines.mkdir(exist_ok=True)
+    (routines / "feature.yaml").write_text(
+        (cfg.DEFAULTS / "routines" / "feature.yaml").read_text(encoding="utf-8")
+        .replace("profile: designer", "profile: nadie"), encoding="utf-8")
     feature_task(env)
     assert run_feature(env) == "WAITING_APPROVAL"
     assert [s for s, _ in env.attempts()] == ["plan", "build", "review", "verify", "scan"]
@@ -140,3 +145,25 @@ def test_packs_add_profiles_and_playbooks_after_the_project(env, tmp_path):
     what, dest = packs.sync(source.as_posix(), "nuevo")
     assert what == "clonado" and (dest / ".git").is_dir()
     assert packs.sync(source.as_posix(), "nuevo")[0] == "actualizado"
+
+
+def test_standard_designer_renders_mockups_and_takes_your_tool_and_guides(env):
+    guide = env.root.parent / "guia-equipo.md"
+    guide.write_text("Usa la libreria del equipo: botones de 48 px.\n", encoding="utf-8")
+    cfg_file = env.root / ".umbra" / "project.toml"
+    cfg_file.write_text(cfg_file.read_text(encoding="utf-8") + (
+        f'\n[design]\nguides = ["{guide.as_posix()}", "no-existe.md"]\n\n'
+        '[design.mcp.lienzo]\ncommand = "lienzo"\nargs = ["--sin-ventana"]\n'), encoding="utf-8")
+    env.mode("plan_ui", "design", "noop")
+    feature_task(env)
+    assert run_feature(env) == "BLOCKED"
+    designer, critic = env.claude_calls()[1], env.claude_calls()[2]
+    servers = json.loads(flag(designer["args"], "--mcp-config"))["mcpServers"]
+    assert servers["lienzo"] == {"command": "lienzo", "args": ["--sin-ventana"]}  # tu herramienta
+    shots = servers["playwright"]["args"]  # y el navegador para las maquetas HTML
+    assert "--allow-unrestricted-file-access" in shots
+    assert flag(shots, "--output-dir") == f"{Path(designer['cwd']).as_posix()}/design/png"
+    assert ("--browser" in shots) == (os.name == "nt")  # Edge en Windows
+    assert "--model" in designer["args"] and flag(designer["args"], "--model") == "claude-opus-5-5"
+    for call in (designer, critic):
+        assert "botones de 48 px" in call["prompt"]  # la guía viaja al diseñador y al crítico

@@ -1,0 +1,15 @@
+name         = "designer"
+agent        = "claude-code"
+roles        = ["design"]
+model        = "claude-opus-5-5"
+instructions = "designer.md"
+# render: un navegador para fotografiar maquetas HTML. Tu propia herramienta de diseño (Figma,
+# Pencil u otra con servidor MCP) se conecta sin tocar este perfil: [design.mcp.<nombre>] en
+# ~/.umbra/local.toml o en .umbra/project.toml (ver docs/usage.md).
+actions      = ["read", "search", "edit", "render"]
+allowed_paths = ["design/**"]
+output       = "stage-output/v1"
+
+[limits]
+max_minutes  = 25
+max_cost_usd = 4.00

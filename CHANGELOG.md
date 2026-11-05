@@ -7,6 +7,12 @@ versión publicada.
 
 ## Sin publicar
 
+- umbra trae un **diseñador estándar** que no depende de ninguna herramienta: diseña en HTML y
+  CSS, fotografía las pantallas con el navegador y deja el sistema del proyecto en
+  `design/sistema.md`. Tu herramienta (Figma, Pencil u otra con MCP) y tus guías se conectan en
+  `[design]` de `~/.umbra/local.toml` o del proyecto.
+- Verificar con navegador ya funciona en Windows sin Google Chrome: usa Edge.
+
 ## v0.22.0 — 2026-11-05
 
 - `umbra self-update` ya no deja umbra roto: espera a que el puente de Telegram y lo que esté

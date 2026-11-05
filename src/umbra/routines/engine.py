@@ -17,7 +17,7 @@ from umbra.adapters import get_adapter
 from umbra.adapters.base import AgentResult, AgentRun
 from umbra.blocks import notify, telegram, worktree
 from umbra.contracts.envelope import Envelope, Finding, StageOutput, TaskInfo
-from umbra.contracts.profile import Profile
+from umbra.contracts.profile import McpServer, Profile
 from umbra.contracts.routine import Stage
 from umbra.contracts.summary import SummaryOutput
 from umbra.management import memory, taste
@@ -27,6 +27,7 @@ from umbra.unified.store import new_id, now, to_cost
 
 TERMINAL = ("BLOCKED", "FAILED", "CANCELLED", "SUCCEEDED")
 DESIGN_DIR = "design"  # lo único que el diseñador puede tocar
+GUIDE_CHARS = 12_000  # por guía de diseño, en el sobre del diseñador y del crítico
 FEEDBACK_CHARS = 4000
 MERGEABLE_POLLS = 5  # espera a que GitHub calcule si el PR se puede integrar
 MERGEABLE_WAIT_S = 2
@@ -309,6 +310,8 @@ class Engine:
                        reason=f"no hay diseñador instalado (perfil «{stage.profile or 'designer'}»"
                               ", p. ej. desde un paquete: umbra pack sync)")
             return Outcome("next")
+        for name, server in (self.project.get("design", {}).get("mcp") or {}).items():
+            profile.mcp[name] = McpServer(**server)  # tu herramienta: [design.mcp.<nombre>]
         run = self.run_row(run_id)
         feedback = self.design_feedback(run_id)
         cycle, blocking, findings = 0, [], []
@@ -388,6 +391,18 @@ class Engine:
                            {"stage": "critic", "agent": critic.agent})
         self.finish_attempt(attempt_id, "done")  # hallazgos de diseño: no van a Construir
         return list(result.output.findings)
+
+    def design_guides(self) -> str:
+        """`[design] guides`: cómo usar tu herramienta y tu sistema de diseño (rutas relativas
+        al proyecto o con ~). Lo que no exista se ignora."""
+        blocks = []
+        for raw in self.project.get("design", {}).get("guides") or []:
+            path = Path(raw).expanduser()
+            path = path if path.is_absolute() else self.root / path
+            if path.is_file():
+                text = path.read_text(encoding="utf-8", errors="replace")[:GUIDE_CHARS]
+                blocks.append(f"# Guía de diseño ({path.name})\n\n{text.strip()}")
+        return "\n\n".join(blocks)
 
     def record_design(self, run_id: str, attempt_id: str, wt: Path, paths: list[str]) -> None:
         head = git.head(wt)
@@ -799,8 +814,9 @@ class Engine:
             project_notes=memory.project_notes(self.root, self.udir), app_url=app_url,
             design=design if design is not None else
             self.approved_design(run["id"]) if stage in ("build", "verify") else [])
-        if stage in ("design", "critic") and (likes := taste.load()):
-            envelope.project_notes = "\n\n".join(filter(None, [envelope.project_notes, likes]))
+        if stage in ("design", "critic"):  # tus guías de diseño y tu gusto
+            envelope.project_notes = "\n\n".join(filter(None, [
+                envelope.project_notes, self.design_guides(), taste.load()]))
         shots = None
         if app_url:  # las capturas caen fuera del workspace: no ensucian el diff
             shots = self.udir / "artifacts" / f"{attempt_id}-shots"
