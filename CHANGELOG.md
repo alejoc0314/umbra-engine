@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.21.0 — 2026-11-05
+
 - umbra es open source (Apache 2.0): se instala desde `github.com/alejoc0314/umbra-engine` y
   `umbra self-update` busca las versiones nuevas ahí.
 
