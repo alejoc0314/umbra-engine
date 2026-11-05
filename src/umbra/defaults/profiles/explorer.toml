@@ -1,0 +1,11 @@
+name         = "explorer"
+agent        = "claude-code"
+roles        = ["onboarding"]
+model        = "sonnet"
+instructions = "explorer.md"
+actions      = ["read", "search"]
+output       = "stage-output/v1"
+
+[limits]
+max_minutes  = 12
+max_cost_usd = 1.50

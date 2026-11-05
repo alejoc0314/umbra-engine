@@ -66,6 +66,7 @@ COMMANDS = [
     ("nuevo_proyecto", "nombre stack [idea] · crear un repo con playbook"),
     ("proyectos", "tus repos y carpetas, y cuál es el actual"),
     ("adoptar", "carpeta · poner umbra en una carpeta que ya existe"),
+    ("onboarding", "[de cero] · que umbra estudie a fondo el proyecto actual"),
     ("usar", "nombre · cambiar de proyecto"),
     ("hacer", "lo que quieres · igual que escribirlo sin más"),
     ("nuevo", "empezar la conversación de cero"),
@@ -91,6 +92,7 @@ class State:
     offset: int = 0
     sessions: dict[str, str] = field(default_factory=dict)  # repo → conversación de Telegram
     talks: dict[str, "console.SpecTalk"] = field(default_factory=dict)  # repo → spec en curso
+    onboards: dict = field(default_factory=dict)  # repo → OnboardTalk en curso
     jobs: dict[str, threading.Thread] = field(default_factory=dict)  # repo → trabajo largo
     workspace: Path | None = None  # la carpeta con tus repos (la del repo que arrancó el puente)
 
@@ -384,6 +386,26 @@ def _job(state: State, work, say) -> str:
     return ""
 
 
+def _onboard(state: State):
+    talk = state.onboards.get(state.current)
+    return talk if talk and not talk.done else None
+
+
+def _onboard_step(state: State, talk, step) -> str:
+    """Un paso de la persona en el onboarding (puede redactar o explorar: corre aparte)."""
+    if talk.busy:
+        return "Sigo con el onboarding; un momento."
+    say = _say(state)
+
+    def run():
+        talk.busy = True
+        try:
+            step()
+        finally:
+            talk.busy = False
+    return _job(state, run, say) or ""
+
+
 def _talk(state: State):
     talk = state.talks.get(state.current)
     return talk if talk and not talk.done else None
@@ -564,6 +586,21 @@ def command(state: State, text: str, who: str) -> str:
             talk.close()
             return "Dejo la conversación de spec; /spec_seguir la retoma."
         return "No hay una spec en curso."
+    if word == "onboarding":
+        from umbra.routines.onboard_talk import OnboardTalk
+        if (talk := _onboard(state)) and talk.busy:
+            return "Sigo con el onboarding; te escribo en cuanto tenga algo."
+        root, name = state.roots[state.current], state.current
+        fresh = arg.lower().replace("-", " ") in ("de cero", "decero")
+
+        def go():
+            state.onboards[name] = OnboardTalk(root, ORIGIN)
+            state.onboards[name].busy = True
+            try:
+                state.onboards[name] = OnboardTalk.start(root, say, ORIGIN, fresh)
+            finally:
+                state.onboards[name].busy = False
+        return _job(state, go, say) or ""
     if word == "plan":
         if not arg:
             return "Indica la spec: /plan specs/001-x/spec.md"
@@ -588,7 +625,8 @@ def command(state: State, text: str, who: str) -> str:
             if arg in state.roots:
                 state.current = arg
             say(f"umbra adoptó {r['root']} ({r['stack']}): " + ", ".join(r["steps"])
-                + f".\nProyecto actual: {state.current}.")
+                + f".\nProyecto actual: {state.current}.\nAntes de trabajar en él, "
+                "¿lo estudio a fondo? /onboarding")
         return _job(state, adopt, say) or f"Adoptando {arg}…"
     if word == "nuevo_proyecto":
         parts = arg.split(maxsplit=2)
@@ -611,6 +649,8 @@ def command(state: State, text: str, who: str) -> str:
         return _job(state, work, say) or f"Creando {name} ({stack}) junto a {parent.name}…"
     if word:
         return f"No conozco /{word}. /ayuda muestra los comandos."
+    if (onb := _onboard(state)) and onb.pending:
+        return _onboard_step(state, onb, lambda: onb.text(text, say))
     if talk := _talk(state):
         if talk.busy:
             return "Sigo con el turno anterior de la spec; te escribo en cuanto termine."
@@ -639,6 +679,17 @@ def handle(state: State, update: dict) -> str | None:
             state.current = name
         if msg.get("message_id"):
             telegram.clear_buttons(tg, msg["message_id"])
+        if data.startswith(("oq:", "or:")):  # el onboarding
+            talk = _onboard(state)
+            say = _say(state)
+            kind, _, choice = data.partition(":")
+            reply = ("No hay un onboarding en curso; /onboarding lo retoma." if not talk else
+                     _onboard_step(state, talk, lambda: (talk.option if kind == "oq"
+                                                         else talk.decide)(choice, say)))
+            telegram.ack(tg, cb["id"], reply[:60])
+            if reply:
+                send(tg, reply)
+            return reply
         if data.startswith(("sq:", "sr:")):  # la conversación de spec
             talk = _talk(state)
             if not talk:

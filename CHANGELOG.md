@@ -7,6 +7,10 @@ versión publicada.
 
 ## Sin publicar
 
+- **Onboarding de proyectos ya iniciados** (`umbra onboard`, `/onboarding`): umbra estudia el
+  proyecto (reconocimiento, línea base de tests, cinco exploradores), te pregunta lo que el código
+  no dice y redacta `CONTEXT.md`, la constitución del proyecto y el inventario para que los apruebes.
+
 ## v0.24.0 — 2026-11-05
 
 - `[design] starter`: el archivo del que parte el diseño de cada proyecto (p. ej. la librería de
