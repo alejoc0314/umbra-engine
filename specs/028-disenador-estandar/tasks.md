@@ -12,3 +12,5 @@ description: "Tareas del diseñador estándar"
 - [x] T003 `[design] guides` y `[design.mcp.<nombre>]` en la configuración, para el diseñador
   y (las guías) el crítico.
 - [x] T004 Pruebas, `docs/usage.md`, `CHANGELOG.md`.
+- [x] T005 `[design] starter`: el archivo base del proyecto (librería del equipo) se copia una
+  vez a `design/<proyecto>.<ext>` antes de diseñar.

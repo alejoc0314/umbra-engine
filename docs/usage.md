@@ -301,6 +301,7 @@ perfil. Se hace en `~/.umbra/local.toml`, para ti en todos tus proyectos, o en
 ```toml
 [design]
 guides = ["~/.umbra/design/mi-equipo.md"]   # cómo usar tu herramienta, tu marca, tu librería
+starter = "~/.umbra/design/kit.fig"         # archivo base: se copia a design/<proyecto>.fig
 
 [design.mcp.mi-herramienta]
 command = "mi-herramienta-mcp"
@@ -309,7 +310,10 @@ env = { ALGUNA_OPCION = "1" }
 ```
 
 El diseñador recibe esos servidores (además del navegador) y las guías; el crítico también lee
-las guías. Para cambiar el perfil entero, pon tu `designer.toml` en el proyecto, en `~/.umbra`
+las guías. `starter` (opcional) es el archivo del que parte el diseño de cada proyecto, p. ej. la
+librería de componentes de tu equipo: la primera vez umbra lo copia a `design/` y el diseñador
+trabaja sobre esa copia. Las listas no se suman entre capas: si un proyecto define `guides`,
+incluye también las tuyas generales. Para cambiar el perfil entero, pon tu `designer.toml` en el proyecto, en `~/.umbra`
 o en un paquete.
 
 El diseñador solo puede tocar la carpeta `design/` del proyecto y debe devolver las pantallas
