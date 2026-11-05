@@ -144,7 +144,8 @@ if ((Busy).Count -gt 0) {
         "Ciérralo y vuelve a intentarlo.")
   exit 1
 }
-& '@UV@' tool install --force '@SPEC@' *>> $log
+& '@UV@' tool install --force '@SPEC@' 2>&1 | ForEach-Object { "$_" } |
+  Add-Content $log -Encoding UTF8
 $ok = $LASTEXITCODE -eq 0
 if ($ok) { $ok = ((& '@LAUNCHER@' --version 2>&1) | Out-String) -match 'v@VERSION_RE@\b' }
 if ($ok) {
@@ -169,8 +170,8 @@ def handoff_script(version: str, uv: str, log: str, repo: str = REPO, *,
     instala, comprueba que la versión nueva arranca (si no, vuelve a la anterior), relanza el
     puente y avisa por Windows y Telegram (el token se lee del entorno, nunca se escribe)."""
     q = lambda s: str(s).replace("'", "''")  # noqa: E731 — comilla simple de PowerShell
-    rollback = (f"& '{q(uv)}' tool install --force '{q(install_spec(previous, repo))}' *>> $log"
-                if previous else "")
+    rollback = (f"& '{q(uv)}' tool install --force '{q(install_spec(previous, repo))}' 2>&1 | "
+                'ForEach-Object { "$_" } | Add-Content $log -Encoding UTF8' if previous else "")
     bridge = bridge or {}
     back = " El puente de Telegram volvió." if bridge.get("root") else ""
     values = {
