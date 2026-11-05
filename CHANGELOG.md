@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.24.0 — 2026-11-05
+
 - `[design] starter`: el archivo del que parte el diseño de cada proyecto (p. ej. la librería de
   componentes de tu equipo) se copia a `design/` la primera vez y el diseñador trabaja sobre él.
 
