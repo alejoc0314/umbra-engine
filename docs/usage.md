@@ -375,6 +375,39 @@ mensaje con lo que quieres cambiar. Lo aprobado viaja a Construir, que maqueta f
 pantallas, y a Verificar, que compara la app con ellas. El informe lo dice: «Maquetado sobre el
 diseño que aprobaste». Con `human_approval: false` en la etapa, el diseño se aprueba solo.
 
+**Sistemas de diseño.** Tu catálogo vive fuera de los repos: una carpeta por sistema en
+`~/.umbra/design/<sistema>/` (o en un paquete, en `design/<sistema>/`) con su `sistema.toml`:
+
+```toml
+nombre = "Kit del equipo"
+descripcion = "apps web internas"
+guias = ["guia.md"]          # reglas de uso, marca, componentes
+starter = "kit.umbra"        # el archivo de la librería: se copia a design/ del proyecto
+```
+
+Cada proyecto declara cuál usa con `[design] system = "<sistema>"` en `.umbra/project.toml`
+(versionado), o `"ninguno"` para que el diseñador defina o extraiga el suyo. Si hay catálogo y
+el proyecto aún no lo dijo, umbra pregunta al abrir una spec (`umbra spec new`, `/spec`) y en el
+onboarding. `umbra design sistemas` lista el catálogo; `umbra design sistema [nombre]` y
+`/sistema` lo muestran o lo cambian. El diseñador recibe las guías del sistema y parte de su
+archivo.
+
+**Réplica del diseño actual.** En un proyecto que ya tiene interfaz:
+
+```bash
+umbra design replicar      # o /replicar; se ofrece al aprobar el onboarding
+```
+
+umbra levanta la app con `dev`, recorre las vistas del inventario del onboarding
+(`specs/000-linea-base/vistas.md`) con el navegador y deja una captura por vista en
+`design/actual/` con su índice (vista, ruta, archivo), además del sistema visual que el código ya
+usa en `design/sistema.md`. Con una herramienta de diseño conectada, crea también un tablero
+`Actual · <Vista>` por vista y las variables y componentes base. Apruebas (commit) o descartas.
+Desde ahí puedes pedir «en la vista Ajustes cambia esto»: el diseñador reconstruye esa vista
+editable, fiel a la captura, y aplica solo el cambio. Si la app pide login, `[design.replica]`
+con `usuario` y `clave_env` (el nombre de una variable de entorno); úsalo solo con usuarios de
+prueba locales, porque la clave viaja en el sobre del agente.
+
 Antes de preguntarte, el diseño pasa por dos filtros:
 
 - **Revisiones automáticas**: lo que la herramienta del propio diseñador detecta (contraste,

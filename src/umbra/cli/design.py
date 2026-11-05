@@ -57,3 +57,75 @@ def likes(as_json: bool = JsonOpt) -> None:
     emit(data, as_json, lambda c: c.print(
         (data["text"] or "Todavía nada: se llena con lo que eliges, pides y apruebas.")
         + f"\n\n({data['path']})", highlight=False, markup=False))
+
+
+@app.command("sistemas")
+def systems(as_json: bool = JsonOpt) -> None:
+    """Los sistemas de diseño de tu catálogo (~/.umbra/design y paquetes)."""
+    from umbra.management import design_systems as ds
+    found = ds.catalog()
+
+    def render(c) -> None:
+        if not found:
+            c.print("No hay sistemas: crea ~/.umbra/design/<sistema>/sistema.toml "
+                    "(ver docs/usage.md).")
+        for key, s in found.items():
+            c.print(f"{key}: {s['nombre']}" + (f" — {s['descripcion']}" if s["descripcion"]
+                                              else ""), highlight=False, markup=False)
+    emit(found, as_json, render)
+
+
+@app.command("sistema")
+def system(name: str = typer.Argument(None, help="Sistema del catálogo, o «ninguno»")) -> None:
+    """El sistema de diseño del proyecto: sin argumento lo muestra; con él, lo cambia."""
+    from umbra.management import design_systems as ds
+    ctx = context.load(False)
+    if not name:
+        current = ds.chosen(ctx.config)
+        print(f"Sistema de diseño: {current or 'sin elegir'}. Disponibles: "
+              + ", ".join(k for k, _ in ds.choices()))
+        return
+    try:
+        ds.set_system(ctx.root, name)
+    except ValueError as e:
+        fail(str(e))
+    print(f"Este proyecto usa ahora el sistema de diseño «{name}» (en .umbra/project.toml).")
+
+
+def ask_system(root, config) -> None:
+    """Antes de una spec: si hay catálogo y el proyecto no eligió sistema, pregunta."""
+    from umbra.management import design_systems as ds
+    if not ds.needs_choice(config):
+        return
+    options = ds.choices()
+    print("¿Qué sistema de diseño usa este proyecto?")
+    for i, (_, label) in enumerate(options, 1):
+        print(f"  {i}. {label}")
+    pick = typer.prompt("Número", default=str(len(options)))
+    try:
+        key = options[int(pick) - 1][0]
+    except (ValueError, IndexError):
+        key = ds.NONE
+    ds.set_system(root, key)
+    print(f"Guardado: sistema «{key}».")
+
+
+@app.command("replicar")
+def replicate(yes: bool = typer.Option(False, "--yes", "-y", help="Aprobar sin preguntar")) -> None:
+    """Replica el diseño actual de la app en design/: una captura por vista con su índice, el
+    sistema visual extraído del código y, con tu herramienta conectada, tableros «Actual · X»."""
+    from umbra.management import replica
+    ctx = context.load(False)
+    try:
+        r = replica.replicate(ctx.conn, ctx.root, ctx.udir, ctx.config)
+        print(f"{len(r['images'])} vistas replicadas en design/actual/.\n{r['summary']}")
+        for f in replica.pending(ctx.root):
+            print(f"  {f}")
+        if yes or typer.confirm("¿Guardas la réplica en el repo?"):
+            sha = replica.accept(ctx.conn, ctx.root)
+            print(f"Réplica guardada (commit {sha[:10]}).")
+        else:
+            replica.discard(ctx.conn, ctx.root)
+            print("Réplica descartada.")
+    except replica.ReplicaError as e:
+        fail(str(e))

@@ -7,6 +7,12 @@ versión publicada.
 
 ## Sin publicar
 
+- **Sistemas de diseño por proyecto**: un catálogo en `~/.umbra/design/` y cada proyecto elige el
+  suyo (umbra pregunta al abrir una spec y en el onboarding; `umbra design sistema`, `/sistema`).
+- **Réplica del diseño actual** (`umbra design replicar`, `/replicar`): una captura por vista con
+  su índice y el sistema visual del código en `design/`, y en tu herramienta de diseño si la
+  conectaste; luego puedes pedir cambios «en la vista X».
+
 - La **constitución del proyecto** llega a todos los agentes (con la línea base de tests): el
   revisor la usa como rúbrica y se enmienda con tu aprobación (`umbra constitucion enmendar`,
   `/enmendar`). En proyectos con onboarding, cada spec documenta primero cómo funciona hoy lo

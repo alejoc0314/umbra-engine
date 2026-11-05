@@ -20,7 +20,7 @@ from umbra.contracts.envelope import Envelope, Finding, StageOutput, TaskInfo
 from umbra.contracts.profile import McpServer, Profile
 from umbra.contracts.routine import Stage
 from umbra.contracts.summary import SummaryOutput
-from umbra.management import memory, taste
+from umbra.management import design_systems, memory, taste
 from umbra.unified import config as cfg
 from umbra.unified.events import add_event
 from umbra.unified.store import new_id, now, to_cost
@@ -397,7 +397,7 @@ class Engine:
         """`[design] starter`: el archivo base del proyecto (p. ej. la librería de componentes de
         tu equipo) se copia a `design/<proyecto>.<ext>` si design/ aún no tiene uno de ese tipo:
         el diseñador trabaja sobre esa copia."""
-        raw = self.project.get("design", {}).get("starter")
+        raw = design_systems.resolved(self.project).get("starter")
         if not raw:
             return
         src = Path(raw).expanduser()
@@ -412,10 +412,12 @@ class Engine:
                    path=dest.relative_to(wt).as_posix())
 
     def design_guides(self) -> str:
-        """`[design] guides`: cómo usar tu herramienta y tu sistema de diseño (rutas relativas
-        al proyecto o con ~). Lo que no exista se ignora."""
+        """Las guías del sistema de diseño elegido y las de `[design] guides` (rutas relativas
+        al proyecto o con ~), más el inventario de vistas y el índice de la réplica del diseño
+        actual si existen. Lo que no exista se ignora."""
         blocks = []
-        for raw in self.project.get("design", {}).get("guides") or []:
+        extra = ["specs/000-linea-base/vistas.md", f"{DESIGN_DIR}/actual/indice.md"]
+        for raw in [*(design_systems.resolved(self.project).get("guides") or []), *extra]:
             path = Path(raw).expanduser()
             path = path if path.is_absolute() else self.root / path
             if path.is_file():
