@@ -55,6 +55,8 @@ def self_update(
     if not yes and not typer.confirm(f"¿{action[0].upper()}{action[1:]}?"):
         raise typer.Exit(1)
     try:
-        console.print(version.install(latest), highlight=False)
+        from umbra.routines import bridge
+        console.print(bridge.begin_update(latest), highlight=False)
     except version.VersionError as e:
         fail(str(e))
+
