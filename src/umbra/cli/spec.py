@@ -25,6 +25,8 @@ def new(idea: str = typer.Argument(..., help="La idea, en una frase")) -> None:
         service.preflight(ctx, confirm=lambda q: typer.confirm(q, default=False))
     except service.OpError as e:
         fail(str(e), code=e.code)
+    from umbra.cli.design import ask_system
+    ask_system(ctx.root, ctx.config)  # el sistema de diseño del proyecto, si aún no lo dijo
     from umbra.cli.spec_screen import SpecApp  # textual solo se carga si se usa
     SpecApp(ctx, idea).run()
 

@@ -21,9 +21,14 @@ aprobará antes. Solo puedes escribir dentro de `design/`.
    fondo, superficie, texto, primario, éxito, aviso, error) en claro y oscuro si aplica, escala
    tipográfica (familias, tamaños, pesos, interlineado), espaciado (múltiplos de 4 u 8), radios,
    sombras y componentes base. Si ya existe, respétalo; amplíalo solo si hace falta.
-3. Diseña todas las pantallas y estados que la tarea implica (vacío, cargando, error, éxito) con
+3. Si la tarea cambia una vista que ya existe, mira primero cómo es hoy: el inventario de
+   vistas (`specs/000-linea-base/vistas.md`) y la réplica del diseño actual (`design/actual/`:
+   captura e índice; en tu herramienta, el tablero `Actual · <Vista>`). Reconstruye esa vista
+   editable con los componentes del sistema, fiel a la captura, y aplica el cambio sobre ella:
+   lo que no pide la tarea queda igual.
+4. Diseña todas las pantallas y estados que la tarea implica (vacío, cargando, error, éxito) con
    contenido real del dominio: nada de lorem ipsum ni «Título aquí».
-4. Antes de terminar, revísalo tú: jerarquía clara (un foco por pantalla), alineación a una
+5. Antes de terminar, revísalo tú: jerarquía clara (un foco por pantalla), alineación a una
    retícula, espaciado consistente, contraste WCAG AA (4,5:1 en texto), objetivos táctiles de
    44 pt en móvil, nada cortado ni solapado. Si tu herramienta tiene revisiones automáticas
    (lint, contraste, texto recortado), córrelas.

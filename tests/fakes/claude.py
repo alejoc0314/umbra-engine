@@ -133,6 +133,20 @@ elif mode in ("onboard_write", "onboard_stray"):  # el redactor deja los artefac
     if mode == "onboard_stray":  # y se pasa de la raya
         calc.write_text("def add(a, b):\n    return 42\n")
     structured_summary = "Calculadora; principio clave: todo con test."
+elif mode in ("replicate", "replicate_stray"):  # visita la app y deja la réplica en design/
+    import re
+    import urllib.request
+    envelope = json.loads(re.search(r"```json\n(.*?)\n```", prompt, re.S).group(1))
+    with urllib.request.urlopen(envelope["app_url"], timeout=5) as resp:
+        seen = resp.status
+    Path("design/actual").mkdir(parents=True, exist_ok=True)
+    Path("design/actual/inicio.png").write_bytes(b"\x89PNG fake")
+    Path("design/actual/indice.md").write_text("| Vista | Ruta |\n| Inicio | / |\n")
+    Path("design/sistema.md").write_text("# Sistema\n\nPrimario #001E62\n")
+    if mode == "replicate_stray":
+        calc.write_text("def add(a, b):\n    return 42\n")
+    structured_images = ["design/actual/inicio.png"]
+    structured_summary = f"1 vista (HTTP {seen})"
 elif mode in ("amend", "amend_stray"):  # el redactor enmienda la constitución
     c = Path(".specify/memory/constitution.md")
     c.write_text(c.read_text() + "\n### 2. Contratos\n\nToda API MUST tener test de contrato.\n")

@@ -68,6 +68,8 @@ COMMANDS = [
     ("adoptar", "carpeta · poner umbra en una carpeta que ya existe"),
     ("onboarding", "[de cero] · que umbra estudie a fondo el proyecto actual"),
     ("constitucion", "la constitución del proyecto actual"),
+    ("sistema", "[nombre] · el sistema de diseño del proyecto"),
+    ("replicar", "réplica del diseño actual de la app en design/"),
     ("enmendar", "texto · proponer un cambio a la constitución"),
     ("usar", "nombre · cambiar de proyecto"),
     ("hacer", "lo que quieres · igual que escribirlo sin más"),
@@ -95,6 +97,7 @@ class State:
     sessions: dict[str, str] = field(default_factory=dict)  # repo → conversación de Telegram
     talks: dict[str, "console.SpecTalk"] = field(default_factory=dict)  # repo → spec en curso
     onboards: dict = field(default_factory=dict)  # repo → OnboardTalk en curso
+    pending_specs: dict[str, str] = field(default_factory=dict)  # repo → idea (falta sistema)
     jobs: dict[str, threading.Thread] = field(default_factory=dict)  # repo → trabajo largo
     workspace: Path | None = None  # la carpeta con tus repos (la del repo que arrancó el puente)
 
@@ -165,6 +168,16 @@ def act(ctx: service.Ctx, data: str, who: str) -> str:
         if kind == "spec":
             r = service.approve_spec(ctx, arg, ORIGIN)
             return f"Spec {arg} integrada: merge {r['merge_sha'][:10]}."
+        if kind == "dr":
+            from umbra.management import replica
+            try:
+                if arg == "approve":
+                    sha = replica.accept(ctx.conn, ctx.root, ORIGIN)
+                    return f"Réplica guardada (commit {sha[:10]})."
+                replica.discard(ctx.conn, ctx.root, ORIGIN)
+                return "Réplica descartada."
+            except replica.ReplicaError as e:
+                return f"No se pudo: {e}"
         if kind == "ce":
             from umbra.management import constitution as con
             try:
@@ -565,6 +578,12 @@ def command(state: State, text: str, who: str) -> str:
             return "Escribe la idea: /spec una app para…"
         if _talk(state):
             return "Ya hay una spec en curso en este proyecto; /spec_salir la deja."
+        from umbra.management import design_systems as ds
+        if ds.needs_choice(proj.load_project(state.roots[state.current])):
+            state.pending_specs[state.current] = arg
+            say("Antes de la spec: ¿qué sistema de diseño usa este proyecto?",
+                [[(label[:60], f"ds:{key}")] for key, label in ds.choices()])
+            return ""
         ctx = _ctx(state)
         try:
             state.talks[state.current] = console.SpecTalk(ctx.root, "", arg)  # reserva
@@ -613,6 +632,36 @@ def command(state: State, text: str, who: str) -> str:
             finally:
                 state.onboards[name].busy = False
         return _job(state, go, say) or ""
+    if word == "sistema":
+        from umbra.management import design_systems as ds
+        root = state.roots[state.current]
+        if arg:
+            try:
+                ds.set_system(root, arg)
+            except ValueError as e:
+                return str(e)
+            return f"{state.current} usa ahora el sistema de diseño «{arg}»."
+        current = ds.chosen(proj.load_project(root))
+        say(f"Sistema de diseño de {state.current}: {current or 'sin elegir'}. ¿Cuál usa?",
+            [[(label[:60], f"ds:{key}")] for key, label in ds.choices()])
+        return ""
+    if word == "replicar":
+        from umbra.management import replica
+
+        def rep():
+            ctx = _ctx(state)
+            try:
+                r = replica.replicate(ctx.conn, ctx.root, ctx.udir, ctx.config, ORIGIN)
+            except replica.ReplicaError as e:
+                return say(f"No se pudo: {e}")
+            finally:
+                ctx.conn.close()
+            telegram.send_photos(state.tg, [ctx.root / f for f in r["images"]],
+                                 f"Diseño actual de {ctx.root.name}")
+            say(f"{len(r['images'])} vistas replicadas en design/actual/.\n{r['summary']}",
+                [[("✅ Guardar en el repo", "dr:approve"), ("🗑 Descartar", "dr:discard")]])
+        return _job(state, rep, say) or ("Levanto la app y recorro sus vistas; tarda unos "
+                                         "minutos.")
     if word == "constitucion":
         from umbra.management import constitution as con
         root = state.roots[state.current]
@@ -715,6 +764,20 @@ def handle(state: State, update: dict) -> str | None:
             state.current = name
         if msg.get("message_id"):
             telegram.clear_buttons(tg, msg["message_id"])
+        if data.startswith("ds:"):  # el sistema de diseño del proyecto
+            from umbra.management import design_systems as ds
+            key = data.partition(":")[2]
+            try:
+                ds.set_system(state.roots[state.current], key)
+                reply = f"{state.current} usa el sistema de diseño «{key}»."
+            except ValueError as e:
+                reply = str(e)
+            telegram.ack(tg, cb["id"], reply[:60])
+            send(tg, reply)
+            if idea := state.pending_specs.pop(state.current, None):
+                if follow := command(state, f"/spec {idea}", who):
+                    send(tg, follow)
+            return reply
         if data.startswith(("oq:", "or:")):  # el onboarding
             talk = _onboard(state)
             say = _say(state)

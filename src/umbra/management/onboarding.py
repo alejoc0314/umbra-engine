@@ -192,17 +192,22 @@ def baseline(conn, root: Path, udir: Path, config: dict) -> str:
 
 # ---------- agentes ----------
 def agent(root: Path, udir: Path, profile_name: str, title: str, description: str,
-          feedback: list[str], output_model: type[BaseModel] | None = None):
-    """Un agente fuera de una tarea (como el cartógrafo). Devuelve (resultado, invocación)."""
+          feedback: list[str], output_model: type[BaseModel] | None = None,
+          app_url: str | None = None, mcp: dict | None = None):
+    """Un agente fuera de una tarea (como el cartógrafo). Devuelve (resultado, invocación).
+    `app_url` le da la app levantada (con la acción `browse`); `mcp`, servidores extra."""
     from umbra.adapters import get_adapter
     from umbra.adapters.base import AgentRun
     from umbra.contracts.envelope import Envelope, StageOutput, TaskInfo
+    from umbra.contracts.profile import McpServer
     profile = cfg.load_profile(udir, profile_name)
+    for name, server in (mcp or {}).items():
+        profile.mcp[name] = McpServer(**server)
     invocation = new_id()
     envelope = Envelope(run_id=f"onboarding-{invocation[:8]}", stage="onboarding",
                         attempt_id=invocation, input_sha=git.head_or_none(root) or "",
                         task=TaskInfo(number=0, title=title, description=description),
-                        feedback=feedback)
+                        feedback=feedback, app_url=app_url)
     req = AgentRun(envelope, profile, root,
                    udir / "artifacts" / f"{invocation}-onboarding.jsonl",
                    output_model=output_model or StageOutput)
@@ -324,6 +329,8 @@ def approve(conn, root: Path, origin: str = "cli") -> str | None:
     files = written(root)
     if not files:
         raise OnboardingError("no hay nada redactado que aprobar")
+    if ".umbra/project.toml" in _dirty(root):  # p. ej. el sistema de diseño elegido
+        files.append(".umbra/project.toml")
     git.run(root, "add", "--", *files)
     if not git.run(root, "diff", "--cached", "--name-only", "--", *files):
         return None
