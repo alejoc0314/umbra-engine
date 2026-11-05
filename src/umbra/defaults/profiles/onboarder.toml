@@ -1,0 +1,12 @@
+name          = "onboarder"
+agent         = "claude-code"
+roles         = ["onboarding"]
+model         = "claude-opus-5-5"
+instructions  = "onboarder.md"
+actions       = ["read", "search", "edit"]
+allowed_paths = ["CONTEXT.md", ".specify/memory/constitution.md", "specs/000-linea-base/**"]
+output        = "stage-output/v1"
+
+[limits]
+max_minutes  = 20
+max_cost_usd = 4.00

@@ -91,6 +91,34 @@ clona o actualiza desde el repo del equipo (una carpeta por stack con `playbook.
 `scaffold`, `default_routine`, `[commands]`, `[files]` = archivo del playbook → destino) y
 `umbra playbook list` muestra los disponibles.
 
+### Un proyecto que ya existe: onboarding
+
+Antes de trabajar en un proyecto con historia, umbra lo estudia a fondo:
+
+```bash
+umbra onboard            # retoma donde quedó; --de-cero empieza otra vez
+```
+
+En Telegram es `/onboarding` (y `/adoptar` te lo ofrece al terminar). El recorrido:
+
+1. **Reconocimiento** (sin modelo): stack, comandos que declara el proyecto, CI,
+   documentación, instrucciones para IA que ya existan (CLAUDE.md, AGENTS.md, .cursorrules…),
+   variables de entorno de ejemplo, migraciones, tamaño e historia de git.
+2. **Línea base** (sin modelo): corre `test` y `lint` y anota qué pasa y qué ya fallaba antes de
+   que umbra toque nada.
+3. **Exploración**: cinco exploradores de solo lectura en paralelo (arquitectura, dominio,
+   convenciones, interfaz con el inventario de vistas, y riesgos).
+4. **Preguntas**: hasta 8, solo lo que el código no dice, con opciones (la recomendada primero)
+   o texto libre.
+5. **Redacción y revisión**: `CONTEXT.md` ampliado, la constitución del proyecto
+   (`.specify/memory/constitution.md`: principios MUST/SHOULD con su evidencia, marcados «así se
+   hace hoy» o «así queremos que se haga») y `specs/000-linea-base/` (inventario de
+   capacidades, vistas, línea base y riesgos). Apruebas o pides cambios; al aprobar quedan en un
+   commit «umbra: onboarding» en la rama actual (sin push).
+
+Las notas de trabajo quedan en `.umbra/artifacts/onboarding/` (no se versionan). Cuesta unos
+pocos dólares en un repo mediano: los exploradores usan Sonnet y el redactor, Opus.
+
 ### Varios repos
 
 `umbra init` y `umbra new` registran cada repo en `~/.umbra/projects.json`. `umbra watch --all`

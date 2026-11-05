@@ -118,6 +118,21 @@ elif mode == "design_options":  # tres direcciones para que la persona elija
 elif mode == "critique":  # el crítico ve algo roto
     findings = [{"severity": "high", "message": "el texto del boton se corta",
                  "file": "design/png/pantalla-1.png", "rule": "tipografia"}]
+elif mode == "explore":  # un explorador del onboarding: nota + dudas
+    structured_summary = "## Hallazgos\n\nUna calculadora en calc.py con tests en tests/."
+    questions = ["Para quien es la calculadora?"]
+elif mode in ("onboard_write", "onboard_stray"):  # el redactor deja los artefactos
+    Path(".specify/memory").mkdir(parents=True, exist_ok=True)
+    Path("specs/000-linea-base").mkdir(parents=True, exist_ok=True)
+    Path("CONTEXT.md").write_text("<!-- umbra:inicio -->\n## Que es\nCalculadora.\n"
+                                  "<!-- umbra:fin -->\n")
+    Path(".specify/memory/constitution.md").write_text(
+        "# Repo Constitution\n\n## Core Principles\n\n### 1. Tests\n\nToda funcion MUST tener "
+        "test.\n- **Estado**: asi se hace hoy\n- **Evidencia**: tests/test_calc.py\n")
+    Path("specs/000-linea-base/inventario.md").write_text("# Inventario\n\n- add: calc.py\n")
+    if mode == "onboard_stray":  # y se pasa de la raya
+        calc.write_text("def add(a, b):\n    return 42\n")
+    structured_summary = "Calculadora; principio clave: todo con test."
 elif mode == "touch":  # una etapa de solo lectura que escribe
     Path("intruso.txt").write_text("x")
 elif mode == "error":
@@ -145,6 +160,12 @@ elif mode == "propose_cycle":
     structured = {"tasks": [task("a", [1]), task("b", [0])], "questions": []}
 elif mode == "propose_questions":
     structured = {"tasks": [], "questions": ["¿Qué base de datos?"]}
+elif mode == "onboard_questions":
+    structured = {"questions": [
+        {"question": "Quien usa la app?", "options": ["Clientes", "Equipo interno"],
+         "recommended": 1},
+        {"question": "Que no se toca?", "options": ["Las migraciones", "Nada en especial"]}],
+        "summary": "dos dudas"}
 
 print(json.dumps({"type": "system", "subtype": "init", "session_id": "sess-fake"}))
 print(json.dumps({
