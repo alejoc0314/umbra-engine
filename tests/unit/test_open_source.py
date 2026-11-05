@@ -6,7 +6,9 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PRIVATE = re.compile(r"conecty|umbra[ -]?design|Asus-116338|9167996196", re.I)
+# el producto de diseño del equipo (no el comando `umbra design`, que es genérico)
+PRIVATE = re.compile(r"(?i:conecty|umbra-design|umbradesign|Asus-116338)|UMBRA Design"
+                     r"|9167996196")
 
 
 def test_nothing_private_in_tracked_files():

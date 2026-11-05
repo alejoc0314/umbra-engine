@@ -106,6 +106,9 @@ def report_text(rep: dict) -> str:
         ok = rep["scan"] == "done"
         out.append(f"{_mark(ok)} Seguridad: " + ("sin secretos ni problemas" if ok
                                                  else "hay problemas"))
+    if rep.get("design"):
+        out.append(f"✓ Maquetado sobre el diseño que aprobaste ({rep['design']} pantalla"
+                   f"{'s' if rep['design'] > 1 else ''})")
     if rep.get("screenshots"):
         out.append(f"✓ Visto en el navegador: {rep['screenshots']} captura"
                    f"{'s' if rep['screenshots'] > 1 else ''} (van adjuntas)")

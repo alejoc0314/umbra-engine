@@ -220,6 +220,12 @@ def decision_message(run, type_: str, payload: dict, project: str = ""
         qs = "\n".join(f"• {q}" for q in details.get("questions", []))
         return (text + f"\nEl agente pregunta:\n{qs}\n\nResponde a este mensaje con tu respuesta.",
                 [[("🔁 Reintentar", f"retry:{n}{at}")]])
+    if code == "design_review":
+        summary = details.get("summary") or ""
+        return (head + "El diseño espera tu visto bueno (las pantallas van en las fotos)."
+                + (f"\n{summary}" if summary else "")
+                + "\n\nSi quieres cambios, responde a este mensaje diciendo cuáles.",
+                [[("✅ Aprobar diseño", f"dok:{n}{at}")]])
     if code == "findings":
         return (text, [[("🚫 No aplica (todos)", f"waive:{n}{at}"),
                         ("🔁 Reintentar", f"retry:{n}{at}")],
