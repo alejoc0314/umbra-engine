@@ -218,7 +218,7 @@ def asks_questions(ctx: service.Ctx, n: int) -> bool:
     return bool(last) and json.loads(last[0]).get("code") == "agent_questions"
 
 
-DIRECTIVE = re.compile(r"^[ \t>*`]*UMBRA>\s*(usar|adoptar|nuevo_proyecto)\s+(.+?)[ \t`*]*$",
+DIRECTIVE = re.compile(r"^[ \t>*`]*UMBRA>\s*(usar|adoptar|nuevo_proyecto|spec)\s+(.+?)[ \t`*]*$",
                        re.M)
 
 
@@ -238,6 +238,11 @@ de estas líneas, sola y exacta, y umbra lo hace:
 UMBRA> usar <proyecto con umbra>   (umbra cambia de proyecto y te repite el mensaje allí)
 UMBRA> adoptar <carpeta sin umbra>   (pone umbra en esa carpeta; luego se puede usar)
 UMBRA> nuevo_proyecto <nombre> <{stacks}> [idea]   (crea la carpeta en {where})
+UMBRA> spec <la idea en una línea, con todo el contexto que tengas>   (abre aquí mismo la
+conversación de spec del proyecto actual: spec, plan y tareas, con preguntas y botones)
+Crear specs desde aquí SÍ se puede: nunca mandes a la persona a `umbra spec new` ni a su
+terminal; usa `UMBRA> spec`. Hay una spec en curso a la vez por proyecto: si te piden varias,
+abre la primera y di que las demás siguen cuando esa termine.
 No inventes nombres: usa los de las listas. Fuera de {where} no trabajas.
 """
 

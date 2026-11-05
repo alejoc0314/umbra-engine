@@ -160,6 +160,21 @@ def test_spec_conversation_from_the_phone(env, tg):
     assert "No hay una spec en curso" in texts(tg)[-1]
 
 
+def test_asking_for_a_spec_in_plain_words_opens_the_conversation(env, tg, monkeypatch):
+    from tests.acceptance.test_workspace_db import answers
+    from umbra.chat import launcher
+    install_flow(env)
+    fake, calls = answers("La abro.\nUMBRA> spec una idea")
+    monkeypatch.setattr(launcher, "ask", fake)
+    st = state(env)
+    tg.say("crea una spec para una idea")
+    poll(env, tg, st)
+    assert "UMBRA> spec" in calls[0]["extra"] and "umbra spec new" in calls[0]["extra"]
+    assert "La abro." in texts(tg)[-1] and "Empiezo la spec" in texts(tg)[-1]
+    wait(lambda: any("¿Cuántos?" in t for t in texts(tg)))
+    assert "repo" in st.talks
+
+
 def test_spec_changes_and_discard_from_the_phone(env, tg):
     install_flow(env)
     st = state(env)

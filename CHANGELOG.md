@@ -7,6 +7,9 @@ versión publicada.
 
 ## Sin publicar
 
+- Por Telegram ya puedes pedir una spec con tus palabras («crea una spec para…»): umbra abre la
+  conversación de spec ahí mismo en vez de mandarte a la terminal.
+
 ## v0.21.0 — 2026-11-05
 
 - umbra es open source (Apache 2.0): se instala desde `github.com/alejoc0314/umbra-engine` y

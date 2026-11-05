@@ -122,6 +122,8 @@ umbra spec list                  # avance por spec: fase, historias hechas, cost
 - `spec list` solo consulta: muestra el avance de cada spec.
 - En `umbra chat`, `spec list` se consulta sin pedir permiso y `spec tasks` pide confirmación;
   `spec new` y `spec resume` abren una pantalla interactiva, así que se ejecutan en tu terminal.
+  Por Telegram la misma conversación se abre con `/spec idea` o pidiéndola con tus palabras
+  («crea una spec para…»): umbra la abre ahí y te pregunta con botones.
 
 ## 4. Ejecutar
 
