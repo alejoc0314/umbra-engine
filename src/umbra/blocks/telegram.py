@@ -30,6 +30,16 @@ def settings(config: dict) -> dict | None:
     return {"token": token, "chat_id": str(chat_id)}
 
 
+def target(config: dict) -> dict | None:
+    """A quién avisar desde fuera de umbra (el script de actualización): el nombre de la
+    variable del token y el chat, nunca el token."""
+    tg = config.get("notify", {}).get("telegram") or {}
+    if not settings(config):
+        return None
+    return {"token_env": tg.get("token_env") or "UMBRA_TELEGRAM_TOKEN",
+            "chat_id": str(tg["chat_id"])}
+
+
 def call(token: str, method: str, params: dict, wait: float = SEND_TIMEOUT_S) -> dict | list | None:
     """Una llamada a la API de bots; None si falló (sin excepciones hacia fuera)."""
     base = os.environ.get("UMBRA_TELEGRAM_API", DEFAULT_API).rstrip("/")

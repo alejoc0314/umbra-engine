@@ -69,6 +69,7 @@ COMMANDS = [
     ("usar", "nombre · cambiar de proyecto"),
     ("hacer", "lo que quieres · igual que escribirlo sin más"),
     ("nuevo", "empezar la conversación de cero"),
+    ("actualizar", "instalar la última versión de umbra (el puente vuelve solo)"),
     ("ayuda", "esta lista"),
 ]
 HELP = ("Soy umbra en tu teléfono. Escríbeme como a una persona: te cuento qué pasa en el "
@@ -471,6 +472,8 @@ def command(state: State, text: str, who: str) -> str:
         return f"Conversación nueva sobre {state.current}."
     if word == "estado":
         return status_text(state)
+    if word == "actualizar":
+        return update_text()
     if word == "tareas":
         ctx = _ctx(state)
         try:
@@ -710,10 +713,12 @@ def alive() -> bool:
         return False
 
 
-def _beat() -> None:
+def _beat(root: Path | None = None) -> None:
     _lock().parent.mkdir(parents=True, exist_ok=True)
-    _lock().write_text(json.dumps({"owner": _me(), "beat": datetime.now(UTC).isoformat()}),
-                       encoding="utf-8")
+    data = {"owner": _me(), "beat": datetime.now(UTC).isoformat()}
+    if root:  # para relanzarlo en su carpeta tras actualizar
+        data["root"] = root.as_posix()
+    _lock().write_text(json.dumps(data), encoding="utf-8")
 
 
 def _mine() -> bool:
@@ -731,6 +736,60 @@ def stop() -> bool:
         return False
 
 
+def handoff() -> dict | None:
+    """Antes de actualizar: detiene el puente vivo y devuelve su proceso y carpeta, para esperar
+    a que salga (`stop` solo avisa; el proceso termina tras su espera de Telegram) y relanzarlo
+    después."""
+    if not alive():
+        return None
+    try:
+        data = json.loads(_lock().read_text(encoding="utf-8"))
+        pid = int(str(data["owner"]).split("@")[0])
+    except (OSError, ValueError, KeyError):
+        return None
+    stop()
+    return {"pid": pid, "root": data.get("root")}
+
+
+def begin_update(latest: str) -> str:
+    """`umbra self-update` y `/actualizar`: detiene el puente (si hay) y lanza la instalación,
+    que lo relanza al terminar y avisa por Telegram."""
+    from umbra import __version__
+    from umbra.unified import version
+    held = handoff()
+    try:
+        root = Path(held["root"]) if held and held.get("root") else service.load().root
+        tg = telegram.target(proj.load_project(root))
+    except (service.OpError, OSError, ValueError):
+        tg = None
+    previous = None if version.is_dev() else __version__
+    try:
+        return version.install(latest, previous, held, tg)
+    except version.VersionError:
+        if held and held.get("root"):  # no se llegó a instalar: el puente vuelve como estaba
+            spawn(Path(held["root"]))
+        raise
+
+
+def update_text() -> str:
+    """`/actualizar`: qué trae la versión nueva y lanzarla (el puente se reinicia solo)."""
+    from umbra import __version__
+    from umbra.unified import version
+    try:
+        latest = version.latest()
+    except version.VersionError as e:
+        return f"No pude consultar las versiones: {e}"
+    if not latest or version.parse(latest) <= version.parse(__version__):
+        return f"Ya estás en v{__version__}, la última."
+    notes = version.notes(latest)
+    try:
+        started = begin_update(latest)
+    except version.VersionError as e:
+        return f"No se pudo actualizar: {e}"
+    return (f"Actualizando de v{__version__} a v{latest}. {started}"
+            + (f"\n\nQué trae:\n{notes[:1500]}" if notes else ""))
+
+
 def serve(root: Path) -> int:
     """Atiende el teléfono para todos tus repos hasta `umbra bridge --stop`. Devuelve cuántas
     actualizaciones atendió."""
@@ -741,13 +800,13 @@ def serve(root: Path) -> int:
                               "chat_id en .umbra/project.toml, y el token en el entorno", 2)
     if alive() and not _mine():
         return 0  # otro puente ya atiende el bot
-    _beat()
+    _beat(root)
     telegram.set_commands(tg, COMMANDS)
     state = State(tg, roots, root.name, workspace=root.parent)
     seen, rounds = 0, 0
     try:
         while _mine():
-            _beat()
+            _beat(root)
             rounds += 1
             if rounds % 10 == 0:  # repos nuevos (umbra init / umbra new) entran solos
                 state.roots = served(root)

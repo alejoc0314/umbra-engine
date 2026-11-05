@@ -23,8 +23,11 @@ umbra self-update           # instalarla
 
 Se instala la **última versión publicada**, no lo último de `main`: lo que umbra integra en
 `main` no cambia tu instalación hasta que se publica una versión. En Windows la actualización
-termina en segundo plano (un programa en uso no se puede reemplazar) y avisa al acabar; cierra
-`umbra watch` antes. No se actualiza mientras hay tareas trabajando.
+termina en segundo plano (un programa en uso no se puede reemplazar): detiene el puente de
+Telegram y espera a que salga, espera hasta 10 minutos a que nada use umbra (`watch` abierto,
+tareas en marcha), instala y comprueba que la versión nueva arranca; si no arranca, vuelve a la
+anterior. Al terminar relanza el puente y avisa por Windows y por Telegram. Desde el teléfono,
+`/actualizar` hace lo mismo y te dice qué trae la versión.
 
 **Si desarrollas umbra**: trabaja en tu copia con `uv run umbra …` (no toca la instalación de
 diario). Para publicar: cada PR describe su cambio en «Sin publicar» del CHANGELOG; luego
