@@ -142,6 +142,36 @@ pocos dólares en un repo mediano: los exploradores usan Sonnet y el redactor, O
 los lista (cuántas tareas te necesitan, cuántas en marcha, gasto); Enter entra en el `watch`
 de ese repo y `P` vuelve a la lista. `umbra projects` imprime la misma lista.
 
+### Front y back en repos separados: espacio de trabajo
+
+Si tu proyecto es una carpeta con varios repos dentro (por ejemplo
+`landing-manager/{api-landing-manager,front-landing-manager}`), ejecuta `umbra init` en la
+carpeta padre: umbra crea un **espacio de trabajo** con todos ellos (`-y` para no preguntar).
+Desde ahí, o desde dentro de cualquiera de sus repos, hay una sola cola, un `watch` y un
+Telegram.
+
+```toml
+# <carpeta>/.umbra/project.toml (no se versiona: la carpeta padre no es un repo)
+[workspace]
+repos = ["api-landing-manager", "front-landing-manager"]  # orden de integración
+```
+
+- El orden sale del `.code-workspace` si lo tienes (si no, alfabético). Pon primero lo que los
+  demás necesitan: normalmente, el back.
+- Cada repo conserva su `.umbra/project.toml` versionado con su stack, comandos de test, lint y
+  dev, rama base y política. El del espacio guarda lo común: avisos, paralelo, piloto
+  automático y editor.
+- Cada historia de la spec dice dónde se hace con una línea `**Repo**: <nombre>` (la
+  conversación de la spec ya lo sabe). Las historias se encadenan: la del front espera a que la
+  del back esté integrada. Para una tarea suelta: `umbra task add "…" --repo <nombre>` o
+  `umbra task repo <n> <nombre>`.
+- Cada tarea trabaja en un worktree de su repo, con sus tests y su política. Al integrarse todas
+  las de una spec, hay un PR de spec por repo. `umbra approve --spec` los integra en el orden del
+  espacio; si uno falla, el resto queda como estaba y aprobar de nuevo integra solo lo que faltó.
+- Lo que depende de un repo concreto se le indica: `umbra exec test --repo <nombre>`.
+- Si un repo ya tenía tareas en marcha con su propio umbra, termínalas antes de unirlo. El
+  onboarding se hace en cada repo antes de crear el espacio.
+
 ## 3. De la spec a las tareas
 
 ```bash

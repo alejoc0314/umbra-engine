@@ -11,6 +11,7 @@ class ProposedTask(BaseModel):
     scope: list[str]
     priority: int = Field(ge=1, le=3)
     depends_on: list[int]  # índices (desde 0) de otras tareas propuestas
+    repos: list[str] = []  # en un espacio de trabajo: el repo (o los repos) de la tarea
 
 
 class PlanOutput(BaseModel):

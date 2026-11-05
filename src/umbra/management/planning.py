@@ -98,11 +98,11 @@ def insert_proposals(conn, spec_id: str | None, plan: PlanOutput,
             ids.append(new_id())
             conn.execute(
                 "INSERT INTO task (id, number, title, about, description, acceptance, scope,"
-                " priority, status, spec_id, created_at, updated_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)",
+                " priority, status, spec_id, repos, created_at, updated_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?)",
                 (ids[i], start + i + 1, t.title, t.about, t.description,
                  json.dumps(t.acceptance, ensure_ascii=False), json.dumps(t.scope),
-                 t.priority, spec_id, now(), now()))
+                 t.priority, spec_id, json.dumps(t.repos), now(), now()))
             if trace:
                 tr = trace[i]
                 conn.execute(

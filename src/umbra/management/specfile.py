@@ -10,6 +10,7 @@ _HEAD = re.compile(
 _END = re.compile(r"^#{1,3}\s")
 _SCEN = re.compile(r"^\*\*(?:Acceptance Scenarios|Escenarios de aceptaci[oó]n)\*\*", re.I)
 _REQ_LINE = re.compile(r"^\*\*Requisitos\*\*\s*:\s*(.*)$", re.I)
+_REPO_LINE = re.compile(r"^\*\*Repos?\*\*\s*:\s*(.*)$", re.I)  # espacio: dónde se hace
 _LABEL = re.compile(r"^\*\*[^*]+\*\*\s*:")
 _ITEM =re.compile(r"^\d+\.\s+(.*)$")
 _FR = re.compile(r"FR-\d+")
@@ -27,6 +28,7 @@ class Story:
     story_hash: str
     scenarios: list[str] = field(default_factory=list)
     requirements: list[str] = field(default_factory=list)
+    repos: list[str] = field(default_factory=list)
 
 
 def _unique(items) -> list[str]:
@@ -46,7 +48,7 @@ def parse_stories(spec_md: str) -> list[Story]:
             j += 1
         section = lines[i - 1:j]
         text = "\n".join(section).strip()
-        scenarios, in_scen, declared = [], False, []
+        scenarios, in_scen, declared, repos = [], False, [], []
         for line in section[1:]:
             s = line.strip()
             if _SCEN.match(s):
@@ -55,6 +57,8 @@ def parse_stories(spec_md: str) -> list[Story]:
                 in_scen = False
                 if r := _REQ_LINE.match(s):
                     declared = _FR.findall(r.group(1))
+                elif r := _REPO_LINE.match(s):
+                    repos = _unique(x.strip(" `") for x in r.group(1).split(",") if x.strip(" `"))
             elif in_scen and (it := _ITEM.match(s)):
                 scenarios.append(it.group(1))
             elif in_scen and s and scenarios:
@@ -62,7 +66,8 @@ def parse_stories(spec_md: str) -> list[Story]:
         stories.append(Story(
             id=f"US{m.group(1)}", title=m.group(2).strip(), priority=min(int(m.group(3)), 3),
             text=text, story_hash=hashlib.sha256(text.encode("utf-8")).hexdigest(),
-            scenarios=scenarios, requirements=_unique(declared or _FR.findall(text))))
+            scenarios=scenarios, requirements=_unique(declared or _FR.findall(text)),
+            repos=repos))
         i = j
     return stories
 

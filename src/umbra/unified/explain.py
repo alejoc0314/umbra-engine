@@ -385,6 +385,12 @@ def tokens_text(tokens: int) -> str:
     return f"{tokens / 1000:.0f}k" if tokens >= 1000 else str(tokens)
 
 
+def task_title(task) -> str:
+    """El título con el repo delante en un espacio de trabajo: «api · Endpoint de pagos»."""
+    repos = json.loads(task["repos"] or "[]") if "repos" in task.keys() else []
+    return f"{' + '.join(repos)} · {task['title']}" if repos else task["title"]
+
+
 def spend_text(cost, tokens: int = 0) -> str:
     """Dólares conocidos y, aparte, los tokens de Codex (que no informa dólares)."""
     cost = Decimal(str(cost or 0))

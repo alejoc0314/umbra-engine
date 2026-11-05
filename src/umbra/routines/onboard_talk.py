@@ -24,6 +24,11 @@ class OnboardTalk:
     def start(cls, root: Path, say, origin: str = "cli", fresh: bool = False) -> "OnboardTalk":
         talk = cls(root, origin)
         ctx = service.load(root)
+        if ctx.members:  # ponytail: el onboarding estudia un repo; en un espacio, aún no
+            ctx.conn.close()
+            raise ob.OnboardingError(
+                "el onboarding aún no funciona en un espacio de trabajo: hazlo en cada repo "
+                "antes de unirlo al espacio")
         try:
             if fresh:
                 ob.reset(ctx.udir)

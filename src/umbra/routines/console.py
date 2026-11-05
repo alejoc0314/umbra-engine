@@ -160,11 +160,12 @@ def findings_text(ctx: service.Ctx, n: int) -> str:
     return "\n".join(out)
 
 
-def delivery(project: dict, root: Path, udir: Path, conn, run) -> tuple[str, list[str]]:
+def delivery(project: dict, root: Path, udir: Path, conn, run,
+             label: str = "") -> tuple[str, list[str]]:
     """Qué se manda al teléfono cuando una tarea queda lista: informe y capturas del navegador."""
     ctx = service.Ctx(root, udir, conn, project)
     data = service.evidence(ctx, run["number"])
-    head = f"umbra · {root.name} · tarea #{run['number']} lista\n\n"
+    head = f"umbra · {label or root.name} · tarea #{run['number']} lista\n\n"
     photos = [a["path"] for a in data["artifacts"]
               if a["kind"] == "screenshot" and a["tested_sha"] == run["head_sha"]]
     return head + report_text(data["report"]), photos
