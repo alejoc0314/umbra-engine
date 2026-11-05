@@ -5,6 +5,7 @@ import sys
 import typer
 
 from umbra.cli import agents, chat, db, explain, findings, management, routines, selfupdate, unified
+from umbra.cli import constitution as constitution_cli
 from umbra.cli import design as design_cli
 from umbra.cli import memory as memory_cli
 from umbra.cli import onboard as onboard_cli
@@ -39,6 +40,7 @@ app.add_typer(unified.playbook_app, name="playbook")
 app.add_typer(unified.pack_app, name="pack")
 app.add_typer(design_cli.app, name="design")
 app.command("onboard")(onboard_cli.onboard)
+app.add_typer(constitution_cli.app, name="constitucion")
 app.command()(unified.metrics)
 app.command("self-update")(selfupdate.self_update)
 # Management

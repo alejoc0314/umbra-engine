@@ -58,7 +58,7 @@ class SpecScreen(Screen):
         self.set_interval(20, self._renew)
         if not resumed:
             self._say(f"Tú: {self.idea}")
-            return self._start_turn(elicit.phase_message("specify", self.idea))
+            return self._start_turn(elicit.phase_message("specify", self.idea, root=self.ctx.root))
         for text in service.spec_history(self.ctx, self.conv_id):
             self._say(text, keep=False)
         self._bar()
@@ -204,7 +204,7 @@ class SpecScreen(Screen):
         elif phase == "done":
             self._enable(False)
         else:
-            self._start_turn(elicit.phase_message(phase, self.idea))
+            self._start_turn(elicit.phase_message(phase, self.idea, root=self.ctx.root))
 
     def _ask(self, q: elicit.Question) -> None:
         order = sorted(range(len(q.options)), key=lambda i: i != q.recommended)  # recomendada 1ª

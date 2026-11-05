@@ -41,6 +41,16 @@ Escribe o actualiza, y nada más:
      trabajar (p. ej. «estos 3 tests ya fallaban: no son culpa de una tarea nueva»).
    - `riesgos.md`: zonas frágiles y qué cuidar.
 
+## «Enmendar la constitución»
+
+En `task.description` está la enmienda que pide la persona y en `feedback` la constitución
+actual. Cambia solo `.specify/memory/constitution.md`: aplica la enmienda (añade, cambia o quita
+principios) manteniendo el formato, ajusta lo que la contradiga y sube la versión (MAJOR si quitas
+o redefines un principio, MINOR si añades uno, PATCH si es redacción) con la fecha de hoy en
+«Last Amended». En `summary`, una frase con lo que cambió.
+
+## Al redactar
+
 Si recibes cambios pedidos por la persona, aplícalos sobre lo que ya escribiste. En `summary`,
 cinco líneas: qué es el proyecto, los principios más importantes y lo que más conviene vigilar.
 Escribe en español.
