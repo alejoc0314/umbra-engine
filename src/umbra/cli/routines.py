@@ -159,6 +159,10 @@ def render_report(c, data: dict) -> None:
         _line(c, f"{i}. {item}", 6)
     for item in crit["unmet"]:
         _line(c, f"✗ {item}", 6)
+    if rep.get("design"):
+        n = rep["design"]
+        _line(c, f"{_mark(True)} Maquetado sobre el diseño que aprobaste ({n} pantalla"
+                 f"{'s' if n > 1 else ''})", 2)
     if rep.get("screenshots"):
         n = rep["screenshots"]
         _line(c, f"{_mark(True)} Visto en el navegador: {n} captura{'s' if n > 1 else ''} "
@@ -209,6 +213,9 @@ def render_evidence(c, data: dict) -> None:
     for a in data["artifacts"]:
         if a["kind"] == "screenshot":
             c.print(f"  captura sobre {(a['tested_sha'] or '-')[:10]}: {a['path']}", markup=False)
+            continue
+        if a["kind"] == "design":
+            c.print(f"  pantalla del diseño: {a['path']}", markup=False)
             continue
         c.print(f"  {a['command']} → exit {a['exit_code']} sobre "
                 f"{(a['tested_sha'] or '-')[:10]} ({a['path']})", markup=False)

@@ -23,12 +23,14 @@ RUN_STATES = {
     "CANCELLED": "Cancelada",
     "SUCCEEDED": "Integrada",
 }
-STAGES = {"plan": "Planificar", "build": "Construir", "review": "Revisar",
+STAGES = {"plan": "Planificar", "design": "Diseñar", "build": "Construir", "review": "Revisar",
           "verify": "Verificar", "scan": "Escanear seguridad", "ship": "Entregar",
           "arbiter": "Arbitrar",
           "summary": "Resumir"}
 STAGE_PURPOSE = {
     "plan": "un agente lee el código y decide cómo abordar la tarea",
+    "design": "si la tarea toca la interfaz, un agente diseñador la diseña y tú das el visto "
+              "bueno antes de construir",
     "build": "el agente constructor escribe el código y umbra corre los tests del proyecto",
     "review": "un segundo agente, distinto del que construyó, revisa el cambio",
     "verify": "un agente comprueba uno por uno los criterios de aceptación",
@@ -265,6 +267,21 @@ REASONS = {
         "El agente que usa esta etapa está registrado pero no verificado.",
         "Un agente nuevo debe pasar una prueba antes de trabajar en tareas reales.",
         [("Verificarlo", "umbra agent list"), ("Luego reintenta", "umbra retry {n}")]),
+    "design_review": _simple(
+        "El diseño está listo y espera tu visto bueno antes de construir.",
+        "La tarea toca la interfaz: el diseñador dejó las pantallas en design/ y el constructor "
+        "maquetará sobre lo que apruebes.",
+        [("Ver las pantallas", "umbra evidence {n}"), ("Aprobarlo", "umbra design ok {n}"),
+         ("Pedir cambios", 'umbra design cambios {n} "..."')]),
+    "design_outside": _simple(
+        "El diseñador tocó archivos fuera de design/.",
+        "Diseñar solo puede cambiar la carpeta design/: el código lo escribe el constructor.",
+        [("Reintentar el diseño", "umbra retry {n} --from design")]),
+    "design_empty": _simple(
+        "El diseñador terminó sin exportar pantallas.",
+        "Sin imágenes no hay nada que aprobar ni en qué basarse para maquetar.",
+        [("Ver qué dijo", "umbra log {n}"),
+         ("Reintentar el diseño", "umbra retry {n} --from design")]),
     "agent_error": _failure("El agente falló por un problema técnico."),
     "agent_unknown": _failure("La rutina usa un agente que umbra no conoce."),
     "internal_error": _failure("umbra encontró un error inesperado."),
@@ -273,6 +290,9 @@ REASONS = {
 BRIEF = {  # versión corta para tablas y listas
     "tests_failing": "los tests siguen fallando",
     "agent_questions": "el agente tiene preguntas",
+    "design_review": "el diseño espera tu visto bueno",
+    "design_outside": "el diseñador tocó código",
+    "design_empty": "el diseñador no dejó pantallas",
     "findings": "hay problemas sin resolver",
     "secrets": "posible secreto en el cambio",
     "no_changes": "el agente no cambió nada",
@@ -526,6 +546,10 @@ def explain_number(conn, udir, task) -> Explanation:
             stages = [s.name for s in cfg.load_routine(udir, run["routine"]).stages]
         except Exception:  # rutina borrada o inválida: se explica sin la barra de progreso
             stages = []
+        if "design" in stages and run["stage"] != "design" and not conn.execute(
+                "SELECT 1 FROM event WHERE run_id = ? AND type = 'design.ready' LIMIT 1",
+                (run["id"],)).fetchone():
+            stages.remove("design")  # solo las tareas que se diseñan muestran esa etapa
     exp = explain_task(conn, task, run, stages, pending_dependencies(conn, task["id"]),
                        _policy_now(udir, run) if run and run["status"] == "BLOCKED" else None)
     exp.about = about(conn, task, run, udir.parent)
@@ -663,6 +687,16 @@ def narrate(event: dict) -> str | None:
         case "run.integrated":
             return (f"Integrada en {p.get('branch')} (PR #{p.get('pr')}): la spec se aprueba "
                     "completa al final.")
+        case "design.skipped":
+            return f"  Sin diseño: {p.get('reason')}."
+        case "design.ready":
+            n = len(p.get("images") or [])
+            return f"  Diseño listo: {n} pantalla{'s' if n != 1 else ''} en design/."
+        case "design.approved":
+            return ("  Diseño aprobado automáticamente." if p.get("auto")
+                    else f"  Aprobaste el diseño ({p.get('actor')}): se maqueta sobre él.")
+        case "design.changes":
+            return f"  Pediste cambios al diseño: {p.get('text')}"
         case "takeover.opened":
             return f"  Lo abriste en tu editor ({p.get('editor')}): umbra espera tu arreglo."
         case "takeover.done":

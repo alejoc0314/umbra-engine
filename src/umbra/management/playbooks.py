@@ -1,8 +1,9 @@
 """Playbooks: cómo arranca un proyecto nuevo de cada stack (comandos, CI, convenciones).
 
-Los de umbra viven en `defaults/playbooks/<stack>/`; los del equipo, en
-`~/.umbra/playbooks/<stack>/` (un repo git que `umbra playbook sync <url>` clona o actualiza) y
-tienen prioridad. Cada carpeta trae `playbook.toml` y los archivos que copia."""
+Los de umbra viven en `defaults/playbooks/<stack>/`; los de un paquete, en
+`~/.umbra/packs/<paquete>/playbooks/<stack>/`; los del equipo, en `~/.umbra/playbooks/<stack>/`
+(un repo git que `umbra playbook sync <url>` clona o actualiza). Gana el último. Cada carpeta
+trae `playbook.toml` y los archivos que copia."""
 
 import subprocess
 import tomllib
@@ -22,7 +23,8 @@ def home() -> Path:
 def available() -> dict[str, Path]:
     """stack → carpeta del playbook (los del equipo pisan a los de umbra)."""
     found: dict[str, Path] = {}
-    for base in (cfg.DEFAULTS / "playbooks", home()):
+    for base in (cfg.DEFAULTS / "playbooks", *(p / "playbooks" for p in reversed(cfg.packs())),
+                 home()):
         if base.is_dir():
             for d in sorted(base.iterdir()):
                 if (d / "playbook.toml").is_file():
@@ -45,7 +47,11 @@ def load(stack: str) -> tuple[dict, Path]:
 def sync(url: str) -> str:
     """Trae (o pone al día) los playbooks del equipo desde un repo git. Devuelve «clonado» o
     «actualizado»."""
-    dest = home()
+    return git_sync(url, home())
+
+
+def git_sync(url: str, dest: Path) -> str:
+    """Clona `url` en `dest` o, si ya es un clon, lo pone al día (solo avance rápido)."""
     if (dest / ".git").is_dir():
         proc = subprocess.run(["git", "-C", str(dest), "pull", "-q", "--ff-only"],
                               capture_output=True, text=True)

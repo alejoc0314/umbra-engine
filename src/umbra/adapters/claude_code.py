@@ -40,12 +40,38 @@ def allowed_tools(actions: list[str], commands: list[str],
     return list(dict.fromkeys(tools))
 
 
-def mcp_config(screenshots_dir: str | None) -> str:
+def playwright_server(screenshots_dir: str | None) -> dict:
     """Servidor MCP de Playwright (sin cabeza); las capturas caen en `screenshots_dir`."""
     args = ["-y", "@playwright/mcp@latest", "--headless"]
     if screenshots_dir:
         args += ["--output-dir", screenshots_dir]
-    return json.dumps({"mcpServers": {"playwright": {"command": "npx", "args": args}}})
+    return {"command": "npx", "args": args}
+
+
+def mcp_config(screenshots_dir: str | None) -> str:
+    return json.dumps({"mcpServers": {"playwright": playwright_server(screenshots_dir)}})
+
+
+def mcp_servers(req: AgentRun) -> dict[str, dict]:
+    """Playwright si el perfil navega y hay app; más los servidores que declara el perfil, con
+    `{profile_dir}` y `{workspace}` resueltos."""
+    p = req.profile
+    servers = {}
+    if "browse" in p.actions and req.envelope.app_url:  # solo con una app que visitar
+        servers["playwright"] = playwright_server(req.envelope.screenshots_dir)
+    marks = {"{profile_dir}": p.source.parent.as_posix() if p.source else "",
+             "{workspace}": req.workspace.as_posix()}
+
+    def fill(text: str) -> str:
+        for mark, value in marks.items():
+            text = text.replace(mark, value)
+        return text
+    for name, s in p.mcp.items():
+        server = {"command": fill(s.command), "args": [fill(a) for a in s.args]}
+        if s.env:
+            server["env"] = {k: fill(v) for k, v in s.env.items()}
+        servers[name] = server
+    return servers
 
 
 def build_command(req: AgentRun) -> list[str]:
@@ -65,9 +91,9 @@ def build_command(req: AgentRun) -> list[str]:
     if "edit" in p.actions:
         cmd += ["--permission-mode", "acceptEdits"]
     tools = allowed_tools(p.actions, req.allowed_commands, p.allowed_paths)
-    if "browse" in p.actions and req.envelope.app_url:  # solo con una app que visitar
-        cmd += ["--mcp-config", mcp_config(req.envelope.screenshots_dir), "--strict-mcp-config"]
-        tools.append("mcp__playwright")
+    if servers := mcp_servers(req):  # solo estos: nada de los MCP globales de la persona
+        cmd += ["--mcp-config", json.dumps({"mcpServers": servers}), "--strict-mcp-config"]
+        tools += [f"mcp__{name}" for name in servers]
     if tools:
         cmd += ["--allowedTools", ",".join(tools)]
     cmd += ["--max-budget-usd", str(p.limits.max_cost_usd)]

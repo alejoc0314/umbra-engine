@@ -41,6 +41,7 @@ class Envelope(BaseModel):
     project_notes: str | None = None  # mapa del repo (CONTEXT.md) + lo aprendido (aprendido.md)
     app_url: str | None = None  # VERIFY con navegador: la app de desarrollo ya levantada
     screenshots_dir: str | None = None  # dónde dejar las capturas (fuera del workspace)
+    design: list[str] = Field(default_factory=list)  # pantallas aprobadas (rutas del workspace)
 
 
 class StageOutput(BaseModel):
@@ -50,6 +51,8 @@ class StageOutput(BaseModel):
     summary: str = ""
     findings: list[Finding] = Field(default_factory=list)
     questions: list[str] = Field(default_factory=list)
+    needs_design: bool | None = None  # PLAN: la tarea crea o cambia interfaz
+    images: list[str] = Field(default_factory=list)  # DESIGN: pantallas exportadas (rutas)
 
 
 def output_schema() -> dict:

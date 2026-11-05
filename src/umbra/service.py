@@ -561,6 +561,35 @@ def answer(ctx: Ctx, number: int, text: str, origin: str = "cli") -> dict:
     return {"number": number, "resumed_from": resumed}
 
 
+def _design_review(ctx: Ctx, number: int):
+    run_row = latest_run(ctx, number)
+    payload = _blocked_payload(ctx, run_row) if run_row["status"] == "BLOCKED" else {}
+    if payload.get("code") != "design_review":
+        raise OpError(f"la tarea {number} no tiene un diseño esperando tu visto bueno")
+    return run_row, payload
+
+
+def design_approve(ctx: Ctx, number: int, origin: str = "cli") -> dict:
+    """La persona da el visto bueno al diseño: Construir maqueta sobre él."""
+    run_row, payload = _design_review(ctx, number)
+    images = payload.get("details", {}).get("images", [])
+    add_event(ctx.conn, run_row["id"], "design.approved", origin, actor=actor(), images=images)
+    stages = [s.name for s in cfg.load_routine(ctx.udir, run_row["routine"]).stages]
+    nxt = stages[stages.index("design") + 1] if "design" in stages[:-1] else None
+    return {"number": number, "images": images, "resumed_from": retry(ctx, number, nxt,
+                                                                       origin=origin)}
+
+
+def design_changes(ctx: Ctx, number: int, text: str, origin: str = "cli") -> dict:
+    """La persona pide cambios al diseño: el diseñador los aplica y vuelve a preguntar."""
+    text = text.strip()
+    if not text:
+        raise OpError("di qué quieres cambiar del diseño")
+    run_row, _ = _design_review(ctx, number)
+    add_event(ctx.conn, run_row["id"], "design.changes", origin, actor=actor(), text=text)
+    return {"number": number, "resumed_from": retry(ctx, number, "design", origin=origin)}
+
+
 def retry(ctx: Ctx, number: int, from_: str | None = None, foreground: bool = False,
           origin: str = "cli") -> str:
     run_row = latest_run(ctx, number)
@@ -928,6 +957,7 @@ def report(ctx: Ctx, number: int, data: dict) -> dict:
                              and a["status"] in ("done", "findings")),
         "observations": observations, "scan": scan, "changes": changes,
         "screenshots": shots,
+        "design": len(eng_.approved_design(rid)),
         "cost": data["cost"], "unpriced_tokens": data["unpriced_tokens"],
         "minutes": minutes, "attempts": len(attempts),
         "pr": (data.get("pr") or {}).get("url"),
