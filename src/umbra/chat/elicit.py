@@ -59,11 +59,24 @@ def phase_settings(phase: str, script: str = "ps") -> dict:
     return {"permissions": {"allow": allow, "deny": deny}}
 
 
-def phase_message(phase: str, idea: str | None = None, comment: str | None = None) -> str:
+RETRO = ("\n\nEste proyecto ya existía antes de umbra (ver specs/000-linea-base/ y la constitución "
+         "en .specify/memory/constitution.md). Antes de especificar el cambio, lee el código del "
+         "área que toca la idea y añade a la spec una sección «## Cómo funciona hoy»: qué hace, "
+         "sus reglas y qué tests la cubren, con rutas reales. La spec describe el cambio sobre "
+         "esa base y respeta la constitución.")
+
+
+def phase_message(phase: str, idea: str | None = None, comment: str | None = None,
+                  root: Path | None = None) -> str:
+    """El mensaje de la fase. En un proyecto que pasó por el onboarding, la spec documenta
+    primero cómo funciona hoy lo que va a cambiar (spec retroactiva, justo a tiempo)."""
     if comment:
         return f"Cambios pedidos: {comment}"
     cmd = MESSAGES[phase]
-    return f"{cmd} {idea}" if phase == "specify" and idea else cmd
+    if phase != "specify" or not idea:
+        return cmd
+    retro = RETRO if root and (root / "specs" / "000-linea-base").is_dir() else ""
+    return f"{cmd} {idea}{retro}"
 
 
 # --- preguntas -------------------------------------------------------------------------------

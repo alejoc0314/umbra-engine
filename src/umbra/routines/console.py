@@ -235,7 +235,7 @@ class SpecTalk:
         talk.lock = service.spec_lock(ctx, conv_id)
         say(f"Spec nueva sobre «{idea}». Voy con la primera fase; te escribo en cuanto tenga "
             "algo o una pregunta.")
-        talk.turn(elicit.phase_message("specify", idea), say)
+        talk.turn(elicit.phase_message("specify", idea, root=ctx.root), say)
         return talk
 
     @classmethod
@@ -348,7 +348,7 @@ class SpecTalk:
             say("Conversación terminada.")
             self.close()
         else:
-            self.turn(elicit.phase_message(phase, self.idea), say)
+            self.turn(elicit.phase_message(phase, self.idea, root=self.root), say)
 
     def ask(self, q: elicit.Question, say) -> None:
         self.question, self.pending = q, ("question",)
