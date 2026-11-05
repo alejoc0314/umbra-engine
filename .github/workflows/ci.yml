@@ -1,9 +1,17 @@
 name: ci
 
+# En cada PR, lo rápido (lint + tests unitarios, ~2 min). La suite completa (~12 min en el runner)
+# se corre en local antes de integrar o aquí a mano: Actions → ci → Run workflow.
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      completa:
+        description: Correr también los tests de aceptación
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -23,4 +31,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv sync
       - run: uv run ruff check .
-      - run: uv run pytest -q -n auto
+      - run: uv run pytest -q -n auto tests/unit
+      - if: ${{ inputs.completa }}
+        run: uv run pytest -q -n auto tests/acceptance
