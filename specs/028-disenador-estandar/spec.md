@@ -58,6 +58,8 @@ guías. El diseñador los recibe sin tocar su perfil; el crítico también lee l
 - **FR-003**: `[design] guides` y `[design.mcp.<nombre>]` MUST llegar al diseñador; las guías
   también al crítico.
 - **FR-004**: En Windows, Playwright MUST usar Edge.
+- **FR-006**: `[design] starter` MUST copiarse una sola vez a `design/<proyecto>.<ext>` antes de
+  diseñar, si design/ aún no tiene un archivo de ese tipo.
 - **FR-005**: El CHANGELOG y `docs/usage.md` MUST registrar los cambios visibles.
 
 ## Success Criteria *(mandatory)*

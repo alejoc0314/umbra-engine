@@ -695,6 +695,8 @@ def narrate(event: dict) -> str | None:
         case "run.integrated":
             return (f"Integrada en {p.get('branch')} (PR #{p.get('pr')}): la spec se aprueba "
                     "completa al final.")
+        case "design.starter":
+            return f"  El diseño parte de {p.get('source')} (copiado a {p.get('path')})."
         case "design.skipped":
             return f"  Sin diseño: {p.get('reason')}."
         case "design.ready":

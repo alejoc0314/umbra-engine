@@ -3,6 +3,7 @@ Diseñar con el visto bueno de la persona."""
 
 import json
 import os
+import subprocess
 from pathlib import Path
 
 from tests.acceptance.test_e2 import feature_task, run_feature
@@ -167,3 +168,25 @@ def test_standard_designer_renders_mockups_and_takes_your_tool_and_guides(env):
     assert "--model" in designer["args"] and flag(designer["args"], "--model") == "claude-opus-5-5"
     for call in (designer, critic):
         assert "botones de 48 px" in call["prompt"]  # la guía viaja al diseñador y al crítico
+
+
+def test_starter_file_is_copied_once_into_design(env):
+    starter = env.root.parent / "kit.lienzo"
+    starter.write_text('{"kit": 1}', encoding="utf-8")
+    cfg_file = env.root / ".umbra" / "project.toml"
+    cfg_file.write_text(cfg_file.read_text(encoding="utf-8")
+                        + f'\n[design]\nstarter = "{starter.as_posix()}"\n', encoding="utf-8")
+    sync_worker(env)
+    env.mode("plan_ui", "design", "noop", "design", "noop")
+    feature_task(env)
+    assert run_feature(env) == "BLOCKED"
+    wt = Path(env.run()["worktree"])
+    copy = wt / "design" / "repo.lienzo"
+    assert copy.read_text(encoding="utf-8") == '{"kit": 1}'
+    assert "design/repo.lienzo" in subprocess.run(["git", "ls-files"], cwd=wt, capture_output=True,
+                                                  text=True).stdout  # va con el diseño
+    copy.write_text('{"kit": 1, "pantallas": 2}', encoding="utf-8")  # el diseñador trabajó encima
+    env.umbra("design", "cambios", "1", "otra vuelta")
+    assert copy.read_text(encoding="utf-8") == '{"kit": 1, "pantallas": 2}'  # no se pisa
+    assert env.conn.execute("SELECT COUNT(*) FROM event WHERE type = 'design.starter'"
+                            ).fetchone()[0] == 1
