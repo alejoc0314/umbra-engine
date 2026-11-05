@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.25.0 — 2026-11-05
+
 - **Sistemas de diseño por proyecto**: un catálogo en `~/.umbra/design/` y cada proyecto elige el
   suyo (umbra pregunta al abrir una spec y en el onboarding; `umbra design sistema`, `/sistema`).
 - **Réplica del diseño actual** (`umbra design replicar`, `/replicar`): una captura por vista con
