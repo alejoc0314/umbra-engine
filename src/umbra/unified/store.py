@@ -126,7 +126,15 @@ ALTER TABLE run ADD COLUMN base_branch TEXT;
 _V7 = """
 ALTER TABLE task ADD COLUMN repos TEXT NOT NULL DEFAULT '[]';
 """
-MIGRATIONS = [_V1, _V2, _V3, _V4, _V5, _V6, _V7]
+# tareas entre repos (spec 033): base y último commit de la ejecución en cada repo
+_V8 = """
+CREATE TABLE run_part (
+    run_id TEXT NOT NULL REFERENCES run(id), repo TEXT NOT NULL,
+    base_sha TEXT NOT NULL, head_sha TEXT,
+    PRIMARY KEY (run_id, repo)
+);
+"""
+MIGRATIONS = [_V1, _V2, _V3, _V4, _V5, _V6, _V7, _V8]
 
 
 def now() -> str:

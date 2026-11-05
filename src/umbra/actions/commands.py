@@ -1,6 +1,7 @@
 """Comandos registrados del proyecto (.umbra/project.toml [commands])."""
 
 import hashlib
+import os
 import subprocess
 import time
 import urllib.error
@@ -43,7 +44,8 @@ def background(config: dict, name: str = "dev") -> dict | None:
 
 
 def start_background(config: dict, name: str, cwd: Path, udir: Path,
-                     ready_timeout_s: float | None = None) -> dict | None:
+                     ready_timeout_s: float | None = None,
+                     env: dict[str, str] | None = None) -> dict | None:
     """Arranca `name` (p. ej. el servidor de desarrollo) y espera a que su `url` responda.
 
     Devuelve `{proc, url, command, log}` o None si no hay tal comando; NotReady si no arranca."""
@@ -55,7 +57,8 @@ def start_background(config: dict, name: str, cwd: Path, udir: Path,
     out = log.open("w", encoding="utf-8")
     cmd = isolated(spec["run"], cwd, config.get("blocks", {}))
     proc = subprocess.Popen(cmd, cwd=cwd, shell=isinstance(cmd, str), stdin=subprocess.DEVNULL,
-                            stdout=out, stderr=subprocess.STDOUT, **background_kwargs())
+                            stdout=out, stderr=subprocess.STDOUT,
+                            env={**os.environ, **env} if env else None, **background_kwargs())
     url = spec["url"]
     deadline = time.monotonic() + (ready_timeout_s or spec.get("ready_timeout_s", 60))
     while time.monotonic() < deadline:

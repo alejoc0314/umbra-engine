@@ -18,9 +18,11 @@ def branch_name(task_number: int, title: str) -> str:
     return f"umbra/{task_number}-{slug(title)}"
 
 
-def ensure(root: Path, udir: Path, run_id: str, branch: str, base_sha: str) -> Path:
-    """Crea el worktree si no existe; idempotente."""
-    path = udir / WORKTREES / run_id[:12]
+def ensure(root: Path, udir: Path, run_id: str, branch: str, base_sha: str,
+           path: Path | None = None) -> Path:
+    """Crea el worktree si no existe; idempotente. `path`: otra ubicación (el de un repo
+    dentro de la carpeta de una tarea entre repos)."""
+    path = path or udir / WORKTREES / run_id[:12]
     if (path / ".git").exists():
         return path
     if path.exists():
