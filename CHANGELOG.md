@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.22.0 — 2026-11-05
+
 - `umbra self-update` ya no deja umbra roto: espera a que el puente de Telegram y lo que esté
   usando umbra terminen, comprueba que la versión nueva arranca (si no, vuelve a la anterior),
   relanza el puente y avisa por Telegram. Desde el teléfono, `/actualizar`.
