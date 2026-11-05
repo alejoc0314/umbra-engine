@@ -7,6 +7,11 @@ versión publicada.
 
 ## Sin publicar
 
+- La **constitución del proyecto** llega a todos los agentes (con la línea base de tests): el
+  revisor la usa como rúbrica y se enmienda con tu aprobación (`umbra constitucion enmendar`,
+  `/enmendar`). En proyectos con onboarding, cada spec documenta primero cómo funciona hoy lo
+  que toca.
+
 - **Onboarding de proyectos ya iniciados** (`umbra onboard`, `/onboarding`): umbra estudia el
   proyecto (reconocimiento, línea base de tests, cinco exploradores), te pregunta lo que el código
   no dice y redacta `CONTEXT.md`, la constitución del proyecto y el inventario para que los apruebes.

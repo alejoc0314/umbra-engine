@@ -116,6 +116,23 @@ En Telegram es `/onboarding` (y `/adoptar` te lo ofrece al terminar). El recorri
    capacidades, vistas, línea base y riesgos). Apruebas o pides cambios; al aprobar quedan en un
    commit «umbra: onboarding» en la rama actual (sin push).
 
+**Después del onboarding**, la constitución trabaja en todo el ciclo:
+
+- Todos los agentes la reciben, junto con la línea base de tests. El revisor marca como
+  importante incumplir un MUST en lo que el cambio añade; el planificador y el constructor se
+  detienen y preguntan si una tarea obliga a romper un principio.
+- Cada spec nueva parte de **cómo funciona hoy** el área que toca: la conversación de spec la
+  documenta primero (sección «Cómo funciona hoy») y especifica el cambio sobre esa base. Así el
+  proyecto entra a SDD por las zonas donde trabajas, sin escribir specs de todo lo existente.
+- La constitución se enmienda con tu aprobación:
+
+```bash
+umbra constitucion ver
+umbra constitucion enmendar "los endpoints nuevos llevan test de contrato"   # diff → ¿apruebas?
+```
+
+En Telegram, `/constitucion` te manda el archivo y `/enmendar …` propone la enmienda con botones.
+
 Las notas de trabajo quedan en `.umbra/artifacts/onboarding/` (no se versionan). Cuesta unos
 pocos dólares en un repo mediano: los exploradores usan Sonnet y el redactor, Opus.
 

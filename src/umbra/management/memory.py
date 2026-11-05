@@ -10,7 +10,7 @@ from pathlib import Path
 
 FILE = "aprendido.md"
 LEARNED_CHARS = 4000
-CONTEXT_CHARS = 6000
+CONTEXT_CHARS = 12000  # el onboarding lo amplía (arquitectura, dominio, glosario)
 SECTIONS = (("waived", "Revisión: no pedir"), ("deferred", "Para después"),
             ("answers", "Respuestas dadas"), ("allowed", "Rutas autorizadas"))
 HEADER = ("# Aprendido en este repo\n\n"
@@ -106,14 +106,31 @@ def decided_messages(conn: sqlite3.Connection) -> set[str]:
         "SELECT message FROM finding WHERE status IN ('waived', 'deferred')")}
 
 
+CONSTITUTION = ".specify/memory/constitution.md"
+CONSTITUTION_CHARS = 8000
+BASELINE = "specs/000-linea-base/linea-base.md"  # del onboarding: lo que ya fallaba antes
+BASELINE_CHARS = 3000
+
+
 def project_notes(root: Path, udir: Path) -> str | None:
-    """Lo que todo agente recibe: el mapa del repo (`CONTEXT.md`) y lo aprendido."""
+    """Lo que todo agente recibe: la constitución del proyecto, el mapa del repo
+    (`CONTEXT.md`), la línea base de tests (si hubo onboarding) y lo aprendido."""
     blocks = []
+    constitution = root / CONSTITUTION
+    if constitution.is_file():
+        blocks.append("# Constitución del proyecto (principios no negociables: respétalos)\n\n"
+                      + constitution.read_text(encoding="utf-8", errors="replace")
+                      [:CONSTITUTION_CHARS].rstrip())
     context = root / "CONTEXT.md"
     if context.is_file():
         blocks.append("# Mapa del repositorio\n\n"
                       + context.read_text(encoding="utf-8", errors="replace")[:CONTEXT_CHARS]
                       .rstrip())  # escrito a mano en otra codificación: no debe frenar nada
+    baseline = root / BASELINE
+    if baseline.is_file():
+        blocks.append("# Línea base de tests (medida antes de que umbra trabajara aquí)\n\n"
+                      + baseline.read_text(encoding="utf-8", errors="replace")
+                      [:BASELINE_CHARS].rstrip())
     if learned := load(udir).strip():
         blocks.append("# Aprendido en este repo\n\n" + learned)
     return "\n\n".join(blocks) if blocks else None

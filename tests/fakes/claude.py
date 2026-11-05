@@ -133,6 +133,12 @@ elif mode in ("onboard_write", "onboard_stray"):  # el redactor deja los artefac
     if mode == "onboard_stray":  # y se pasa de la raya
         calc.write_text("def add(a, b):\n    return 42\n")
     structured_summary = "Calculadora; principio clave: todo con test."
+elif mode in ("amend", "amend_stray"):  # el redactor enmienda la constitución
+    c = Path(".specify/memory/constitution.md")
+    c.write_text(c.read_text() + "\n### 2. Contratos\n\nToda API MUST tener test de contrato.\n")
+    if mode == "amend_stray":
+        Path("CONTEXT.md").write_text("cambiado\n")
+    structured_summary = "Nuevo principio 2 (MINOR, 1.1.0)."
 elif mode == "touch":  # una etapa de solo lectura que escribe
     Path("intruso.txt").write_text("x")
 elif mode == "error":

@@ -67,6 +67,8 @@ COMMANDS = [
     ("proyectos", "tus repos y carpetas, y cuál es el actual"),
     ("adoptar", "carpeta · poner umbra en una carpeta que ya existe"),
     ("onboarding", "[de cero] · que umbra estudie a fondo el proyecto actual"),
+    ("constitucion", "la constitución del proyecto actual"),
+    ("enmendar", "texto · proponer un cambio a la constitución"),
     ("usar", "nombre · cambiar de proyecto"),
     ("hacer", "lo que quieres · igual que escribirlo sin más"),
     ("nuevo", "empezar la conversación de cero"),
@@ -163,6 +165,16 @@ def act(ctx: service.Ctx, data: str, who: str) -> str:
         if kind == "spec":
             r = service.approve_spec(ctx, arg, ORIGIN)
             return f"Spec {arg} integrada: merge {r['merge_sha'][:10]}."
+        if kind == "ce":
+            from umbra.management import constitution as con
+            try:
+                if arg == "approve":
+                    sha = con.accept(ctx.conn, ctx.root, ORIGIN)
+                    return f"Enmienda aprobada (commit {sha[:10]})."
+                con.discard(ctx.conn, ctx.root, ORIGIN)
+                return "Enmienda descartada: la constitución queda como estaba."
+            except con.ConstitutionError as e:
+                return f"No se pudo: {e}"
         if kind == "dbok":
             r = service.db_apply(ctx, arg, ORIGIN)
             return f"Cambio {arg} aplicado en la BD: {r['affected']} filas afectadas."
@@ -601,6 +613,30 @@ def command(state: State, text: str, who: str) -> str:
             finally:
                 state.onboards[name].busy = False
         return _job(state, go, say) or ""
+    if word == "constitucion":
+        from umbra.management import constitution as con
+        root = state.roots[state.current]
+        if not con.path(root).is_file():
+            return "Este proyecto no tiene constitución todavía: /onboarding la redacta."
+        return "" if telegram.send_document(state.tg, con.path(root), "constitution.md") \
+            else "No pude enviar el archivo."
+    if word == "enmendar":
+        from umbra.management import constitution as con
+        if not arg:
+            return "Escribe la enmienda: /enmendar los endpoints nuevos llevan test de contrato"
+        root = state.roots[state.current]
+
+        def amend():
+            ctx = _ctx(state)
+            try:
+                diff = con.amend(ctx.conn, ctx.root, ctx.udir, arg, ORIGIN)
+            except con.ConstitutionError as e:
+                return say(f"No se pudo: {e}")
+            finally:
+                ctx.conn.close()
+            say(f"Enmienda propuesta:\n```\n{diff[-3000:]}\n```",
+                [[("✅ Aprobar enmienda", "ce:approve"), ("🗑 Descartar", "ce:discard")]])
+        return _job(state, amend, say) or f"Redacto la enmienda en {root.name}…"
     if word == "plan":
         if not arg:
             return "Indica la spec: /plan specs/001-x/spec.md"
