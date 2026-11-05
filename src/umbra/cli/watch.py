@@ -264,7 +264,8 @@ class WatchApp(App):
                 return False
             d = self._decision
             if action == "accept" and self._kind != "draft":
-                return bool(d.get("paths"))  # autorizar: solo si la política frenó algo
+                # autorizar si la política frenó algo, o aprobar un diseño que espera
+                return bool(d.get("paths")) or d.get("code") == "design_review"
             if action == "findings":
                 return d.get("open_findings", 0) > 0
             if action == "approve_all":
@@ -295,6 +296,10 @@ class WatchApp(App):
     # ---------- acciones ----------
     def action_accept(self) -> None:
         n = self.selected
+        if self._decision.get("code") == "design_review":
+            return self._do(f"umbra design ok {n}",
+                            lambda ctx: service.design_approve(ctx, n, ORIGIN),
+                            "Diseño aprobado: sigue Construir, maquetando sobre él.")
         if self._kind != "draft":
             return self._allow()
         self._do(f"umbra task accept {n}", lambda ctx: service.accept(ctx, [n], ORIGIN),
@@ -333,6 +338,19 @@ class WatchApp(App):
         self.push_screen(AskText(f"El agente pregunta:\n{questions}\n\nTu respuesta:"),
                          with_text)
 
+    def _design_changes(self) -> None:
+        """La persona pide cambios al diseño; el diseñador los aplica y vuelve a preguntar."""
+        n = self.selected
+
+        def with_text(text: str | None) -> None:
+            if text:
+                self._do(f'umbra design cambios {n} "{text}"',
+                         lambda ctx: service.design_changes(ctx, n, text, ORIGIN),
+                         "Cambios pedidos: el diseñador los aplica y te vuelve a preguntar.")
+
+        self.push_screen(AskText("¿Qué quieres cambiar del diseño? (las pantallas están en la "
+                                 "evidencia, tecla e)"), with_text)
+
     def action_drop(self) -> None:
         n = self.selected
         self._confirm(f"¿Descartar la tarea {n}? Queda en el historial, pero no se ejecutará.",
@@ -348,6 +366,8 @@ class WatchApp(App):
             return
         if self._decision.get("code") == "agent_questions":
             return self._answer()
+        if self._decision.get("code") == "design_review":
+            return self._design_changes()
         ctx = service.load(self.root)
         try:
             stages, suggested = service.retry_stages(ctx, n)
@@ -814,7 +834,11 @@ class WatchApp(App):
                 add("o", "Retomar con tu arreglo")
             if d.get("paths"):
                 add("a", "Autorizar cambiar " + ", ".join(d["paths"]))
-            if d.get("code") == "agent_questions":
+            if d.get("code") == "design_review":
+                add("a", "Aprobar el diseño")
+                add("r", "Pedir cambios")
+                add("e", "Ver las pantallas")
+            elif d.get("code") == "agent_questions":
                 add("r", "Responder al agente")
             elif d.get("code") == "findings" or d.get("open_findings"):
                 add("h", "Decidir hallazgos")

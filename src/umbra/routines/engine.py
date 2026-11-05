@@ -26,6 +26,7 @@ from umbra.unified.events import add_event
 from umbra.unified.store import new_id, now, to_cost
 
 TERMINAL = ("BLOCKED", "FAILED", "CANCELLED", "SUCCEEDED")
+DESIGN_DIR = "design"  # lo único que el diseñador puede tocar
 FEEDBACK_CHARS = 4000
 MERGEABLE_POLLS = 5  # espera a que GitHub calcule si el PR se puede integrar
 MERGEABLE_WAIT_S = 2
@@ -74,6 +75,13 @@ def conflict_feedback(files: list[str], still: bool = False) -> str:
             "líneas <<<<<<<, ======= y >>>>>>> y conserva los cambios de AMBOS lados (lo que ya "
             "está en la base y lo de esta tarea), salvo que se contradigan. No toques nada más; "
             "umbra hará el commit de la fusión.")
+
+
+def uncommitted(wt: Path) -> list[str]:
+    """Rutas con cambios sin confirmar en el workspace (nuevas incluidas)."""
+    changed = git.run(wt, "diff", "--name-only", "HEAD").splitlines()
+    new = git.run(wt, "ls-files", "--others", "--exclude-standard").splitlines()
+    return [p.strip() for p in (*changed, *new) if p.strip()]
 
 
 def agent_failure(result: AgentResult) -> Outcome:
@@ -129,6 +137,10 @@ class Engine:
             reason = f" {payload['reason']}" if payload.get("reason") else ""
             notify.send(f"umbra · tarea {run['number']}",
                         f"{run['title']}: {ALERTS[type_]}.{reason}"[:250])
+        if payload.get("code") == "design_review" and (tg := telegram.settings(self.project)):
+            wt = Path(run["worktree"] or "")  # las pantallas, antes de la pregunta
+            telegram.send_photos(tg, [wt / p for p in payload["details"].get("images", [])],
+                                 f"Diseño de la tarea #{run['number']} {run['title']}")
         if mid := telegram.notify_run(self.project, run, type_, payload,
                                       self.root.name):  # al teléfono, siempre
             add_event(self.conn, run_id, "telegram.sent", self.origin, message_id=mid)
@@ -238,6 +250,8 @@ class Engine:
     def run_stage(self, run_id: str, stage: Stage, wt: Path) -> Outcome:
         if stage.name == "plan":
             return self.plan(run_id, stage, wt)
+        if stage.name == "design":
+            return self.design(run_id, stage, wt)
         if stage.name == "build":
             return self.build(run_id, stage, wt)
         if stage.name in ("review", "verify"):
@@ -266,8 +280,79 @@ class Engine:
                            + "; ".join(result.output.questions), "agent_questions",
                            {"stage": "plan", "questions": result.output.questions})
         self.finish_attempt(attempt_id, "done")
-        self.event(run_id, "plan.ready", plan=result.output.summary)
+        self.event(run_id, "plan.ready", plan=result.output.summary,
+                   needs_design=bool(result.output.needs_design))
         return Outcome("next")
+
+    # ---------- DESIGN ----------
+    def design(self, run_id: str, stage: Stage, wt: Path) -> Outcome:
+        """Si la tarea toca interfaz y hay diseñador (un perfil, p. ej. de un paquete), diseña
+        en `design/` y espera el visto bueno de la persona antes de construir."""
+        self.interrupt_stale(run_id, "design")
+        plan = self.last_event(run_id, "plan.ready")
+        if not (plan and json.loads(plan["payload"]).get("needs_design")):
+            self.event(run_id, "design.skipped", reason="la tarea no toca la interfaz")
+            return Outcome("next")
+        try:
+            profile = self.profile(stage.profile or "designer")
+        except cfg.ConfigError:
+            self.event(run_id, "design.skipped",
+                       reason=f"no hay diseñador instalado (perfil «{stage.profile or 'designer'}»"
+                              ", p. ej. desde un paquete: umbra pack sync)")
+            return Outcome("next")
+        run = self.run_row(run_id)
+        attempt_id, result = self.agent_attempt(run, "design", profile, wt,
+                                                self.design_feedback(run_id))
+        if not result.ok:
+            return agent_failure(result)
+        if result.output.status == "blocked":
+            self.finish_attempt(attempt_id, "blocked")
+            return Outcome("BLOCKED", "el diseñador necesita aclaraciones: "
+                           + "; ".join(result.output.questions), "agent_questions",
+                           {"stage": "design", "questions": result.output.questions})
+        outside = [p for p in uncommitted(wt) if not p.startswith(f"{DESIGN_DIR}/")]
+        if outside:
+            self.finish_attempt(attempt_id, "policy_violation")
+            return Outcome("BLOCKED", f"el diseñador tocó archivos fuera de {DESIGN_DIR}/: "
+                           + ", ".join(outside), "design_outside",
+                           {"stage": "design", "files": outside})
+        if git.has_changes(wt):
+            git.commit_all(wt, f"umbra: diseño de {run['title']} (intento {attempt_id[:8]})")
+        images = [p for p in result.output.images if (wt / p).is_file()]
+        if not images:
+            self.finish_attempt(attempt_id, "no_changes")
+            return Outcome("BLOCKED", "el diseñador no dejó pantallas exportadas",
+                           "design_empty", {"stage": "design"})
+        self.finish_attempt(attempt_id, "done")
+        for p in images:
+            f = wt / p
+            self.conn.execute(
+                "INSERT INTO artifact (id, run_id, attempt_id, kind, path, checksum, tested_sha,"
+                " created_at) VALUES (?, ?, ?, 'design', ?, ?, ?, ?)",
+                (new_id(), run_id, attempt_id, f.as_posix(),
+                 hashlib.sha256(f.read_bytes()).hexdigest(), git.head(wt), now()))
+        self.event(run_id, "design.ready", images=images, summary=result.output.summary)
+        if not stage.human_approval:
+            self.event(run_id, "design.approved", images=images, auto=True)
+            return Outcome("next")
+        return Outcome("BLOCKED", "el diseño espera tu visto bueno", "design_review",
+                       {"stage": "design", "images": images,
+                        "summary": result.output.summary})
+
+    def design_feedback(self, run_id: str) -> list[str]:
+        """Lo que la persona pidió cambiar desde el último diseño."""
+        since = self.since(run_id, "design.ready")
+        asks = [json.loads(r["payload"])["text"] for r in self.conn.execute(
+            "SELECT payload FROM event WHERE run_id = ? AND type = 'design.changes'"
+            " AND created_at > ? ORDER BY id", (run_id, since))]
+        if not asks:
+            return []
+        return ["La persona revisó tu diseño anterior (sigue en design/) y pide estos cambios; "
+                "aplícalos sobre él, no empieces de cero: " + " ".join(asks)]
+
+    def approved_design(self, run_id: str) -> list[str]:
+        row = self.last_event(run_id, "design.approved")
+        return json.loads(row["payload"]).get("images", []) if row else []
 
     # ---------- BUILD ----------
     def build(self, run_id: str, stage: Stage, wt: Path) -> Outcome:
@@ -637,7 +722,8 @@ class Engine:
             plan=json.loads(plan["payload"])["plan"] if plan and stage in ("build", "summary")
             else None,
             diff=diff, feedback=feedback or [], findings=previous or [],
-            project_notes=memory.project_notes(self.root, self.udir), app_url=app_url)
+            project_notes=memory.project_notes(self.root, self.udir), app_url=app_url,
+            design=self.approved_design(run["id"]) if stage in ("build", "verify") else [])
         shots = None
         if app_url:  # las capturas caen fuera del workspace: no ensucian el diff
             shots = self.udir / "artifacts" / f"{attempt_id}-shots"

@@ -149,6 +149,38 @@ def playbook_sync(url: str) -> None:
     console.print(f"playbooks {what} en {playbooks.home()}", highlight=False)
 
 
+pack_app = typer.Typer(help="Paquetes: perfiles, rutinas y playbooks que viven fuera del repo.")
+
+
+@pack_app.command("sync")
+def pack_sync(url: str, name: str = typer.Option(None, "--name",
+                                                  help="Carpeta en ~/.umbra/packs")) -> None:
+    """Clona (o pone al día) un paquete desde un repo git en ~/.umbra/packs/<nombre>."""
+    from umbra.management import packs
+    try:
+        what, dest = packs.sync(url, name)
+    except packs.PackError as e:
+        fail(str(e), code=3)
+    console.print(f"paquete {what} en {dest.as_posix()}", highlight=False)
+
+
+@pack_app.command("list")
+def pack_list(as_json: bool = JsonOpt) -> None:
+    """Los paquetes instalados y qué aporta cada uno."""
+    from umbra.management import packs
+    found = packs.installed()
+
+    def render(c) -> None:
+        if not found:
+            c.print("No hay paquetes. Instala uno con: umbra pack sync <repo-git>")
+        for p in found:
+            c.print(f"{p['name']}  ({p['path']})", highlight=False)
+            for kind in ("profiles", "routines", "playbooks"):
+                if p[kind]:
+                    c.print(f"  {kind}: {', '.join(p[kind])}", highlight=False)
+    emit(found, as_json, render)
+
+
 def metrics(as_json: bool = JsonOpt) -> None:
     """Tiempo hasta PR y merge, costo, ciclos de corrección y aceptación inicial."""
     from umbra.unified.metrics import compute

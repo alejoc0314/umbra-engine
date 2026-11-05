@@ -10,6 +10,13 @@ versión publicada.
 - `umbra self-update` ya no deja umbra roto: espera a que el puente de Telegram y lo que esté
   usando umbra terminen, comprueba que la versión nueva arranca (si no, vuelve a la anterior),
   relanza el puente y avisa por Telegram. Desde el teléfono, `/actualizar`.
+- **Diseñar antes de construir**: si la tarea toca la interfaz y tienes un diseñador instalado,
+  umbra la diseña en `design/`, te manda las pantallas (también a Telegram) y espera tu visto
+  bueno (`umbra design ok N` / `umbra design cambios N "..."`). Construir maqueta sobre lo
+  aprobado y Verificar lo compara con la app.
+- **Paquetes**: `umbra pack sync <repo>` instala perfiles, rutinas y playbooks que viven fuera de
+  umbra (lo privado de tu equipo) y `umbra pack list` los muestra. Los perfiles pueden declarar
+  sus propios servidores MCP.
 
 ## v0.21.1 — 2026-11-05
 

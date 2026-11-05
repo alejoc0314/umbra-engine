@@ -200,23 +200,33 @@ def act(ctx: service.Ctx, data: str, who: str) -> str:
         if kind == "answer":
             r = service.answer(ctx, n, data.split(":", 2)[2], ORIGIN)
             return f"Respuesta registrada; la tarea {n} sigue desde {r['resumed_from']}."
+        if kind == "dok":
+            r = service.design_approve(ctx, n, ORIGIN)
+            return f"Diseño aprobado; la tarea {n} sigue desde {r['resumed_from']}."
+        if kind == "dchg":
+            service.design_changes(ctx, n, data.split(":", 2)[2], ORIGIN)
+            return f"Cambios pedidos al diseñador de la tarea {n}; te mando el diseño nuevo."
     except (service.OpError, ValueError) as e:
         return f"No se pudo: {e}"
     return f"No entiendo «{data}»."
 
 
-def asks_questions(ctx: service.Ctx, n: int) -> bool:
-    """¿La tarea n está detenida por preguntas del agente? Solo entonces «n texto» es respuesta."""
+TEXT_REPLIES = {"agent_questions": "answer", "design_review": "dchg"}  # código → acción
+
+
+def reply_action(ctx: service.Ctx, n: int) -> str | None:
+    """Si la tarea n espera un texto de la persona (preguntas del agente o cambios al diseño),
+    la acción que lo recibe; si no, None y «n texto» es conversación."""
     try:
         run = service.latest_run(ctx, n)
     except service.OpError:
-        return False
+        return None
     if run["status"] not in ("BLOCKED", "FAILED"):
-        return False
+        return None
     last = ctx.conn.execute("SELECT payload FROM event WHERE run_id = ? AND type IN"
                             " ('run.blocked', 'run.failed') ORDER BY id DESC LIMIT 1",
                             (run["id"],)).fetchone()
-    return bool(last) and json.loads(last[0]).get("code") == "agent_questions"
+    return TEXT_REPLIES.get(json.loads(last[0]).get("code")) if last else None
 
 
 DIRECTIVE = re.compile(r"^[ \t>*`]*UMBRA>\s*(usar|adoptar|nuevo_proyecto|spec)\s+(.+?)[ \t`*]*$",
@@ -600,8 +610,8 @@ def command(state: State, text: str, who: str) -> str:
     if m := re.match(r"^#?(\d+)[:\s]+(.+)$", text, re.S):
         ctx = _ctx(state)
         try:
-            if asks_questions(ctx, int(m.group(1))):
-                return act(ctx, f"answer:{m.group(1)}:{m.group(2).strip()}", who)
+            if kind := reply_action(ctx, int(m.group(1))):
+                return act(ctx, f"{kind}:{m.group(1)}:{m.group(2).strip()}", who)
         finally:
             ctx.conn.close()
     return converse(state, text)
@@ -658,8 +668,8 @@ def handle(state: State, update: dict) -> str | None:
                 state.current = m.group(1)
             ctx = _ctx(state)
             try:
-                if text and asks_questions(ctx, int(m.group(2))):
-                    reply = act(ctx, f"answer:{m.group(2)}:{text}", who)
+                if text and (kind := reply_action(ctx, int(m.group(2)))):
+                    reply = act(ctx, f"{kind}:{m.group(2)}:{text}", who)
                     send(tg, reply)
                     return reply
             finally:

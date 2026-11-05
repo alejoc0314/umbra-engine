@@ -13,6 +13,16 @@ class Limits(BaseModel):
     max_cost_usd: Decimal = Decimal("2.00")
 
 
+class McpServer(BaseModel):
+    """Un servidor MCP que el perfil necesita (solo Claude Code). En `command`, `args` y `env`,
+    `{profile_dir}` es la carpeta del perfil (p. ej. dentro de un paquete) y `{workspace}` la de
+    la tarea. Sin secretos aquí: el servidor hereda tu entorno."""
+
+    command: str
+    args: list[str] = Field(default_factory=list)
+    env: dict[str, str] = Field(default_factory=dict)
+
+
 class Profile(BaseModel):
     name: str
     agent: str
@@ -24,6 +34,7 @@ class Profile(BaseModel):
     instructions: str | None = None  # archivo .md junto al .toml
     actions: list[str] = Field(default_factory=lambda: ["read"])
     allowed_paths: list[str] = Field(default_factory=list)  # con edit: solo estas rutas
+    mcp: dict[str, McpServer] = Field(default_factory=dict)  # servidores MCP del perfil
     output: str = "stage-output/v1"
     limits: Limits = Field(default_factory=Limits)
     source: Path | None = None  # dónde se cargó (no viene del archivo)

@@ -282,6 +282,28 @@ verificado; el informe de aprobación las cuenta y `umbra evidence N --raw` las 
 terminar, umbra apaga la app. Si no responde a tiempo, la tarea se detiene («la app de
 desarrollo no respondió»). Sin `dev`, Verificar funciona como siempre.
 
+### Diseñar antes de construir
+
+En la rutina `feature`, después de Planificar va **Diseñar**. Corre solo si el planificador dice
+que la tarea toca lo que la persona ve (pantallas, componentes, estilos, web o móvil) y si hay
+un perfil `designer` instalado. umbra no trae diseñador: lo aporta un paquete (ver «Paquetes»
+en la sección 7) o tu proyecto (`.umbra/profiles/designer.toml`). Sin él, la etapa se salta y
+todo sigue como antes.
+
+El diseñador solo puede tocar la carpeta `design/` del proyecto y debe devolver las pantallas
+exportadas (`images`). Después la tarea se detiene esperando tu visto bueno, y las pantallas te
+llegan como fotos a Telegram:
+
+```bash
+umbra design ok 3                       # aprobado: Construir maqueta sobre él
+umbra design cambios 3 "menos texto"    # el diseñador lo ajusta y vuelve a preguntarte
+```
+
+En `watch`, `a` aprueba y `r` pide cambios. En Telegram, el botón «Aprobar diseño» o responder al
+mensaje con lo que quieres cambiar. Lo aprobado viaja a Construir, que maqueta fiel a esas
+pantallas, y a Verificar, que compara la app con ellas. El informe lo dice: «Maquetado sobre el
+diseño que aprobaste». Con `human_approval: false` en la etapa, el diseño se aprueba solo.
+
 ### Decidir desde el teléfono (Telegram)
 
 1. Crea un bot con @BotFather y guarda su token en una variable de entorno (por ejemplo
@@ -397,6 +419,35 @@ umbra agent add examples/agents/todo-reviewer && umbra agent test todo-reviewer
 ```
 
 Ver [`adapters.md`](adapters.md) para integrar cualquier ejecutable como agente.
+
+### Servidores MCP de un perfil
+
+Un perfil de Claude Code puede declarar los servidores MCP que necesita. umbra se los pasa a
+ese agente, y solo esos: nunca los MCP globales de tu instalación.
+
+```toml
+[mcp.lienzo]
+command = "lienzo"
+args = ["--sin-ventana", "--estilos", "{profile_dir}/estilos"]
+env = { MODO = "agente" }
+```
+
+`{profile_dir}` es la carpeta del perfil y `{workspace}` la de la tarea. No pongas secretos en
+`env`: el servidor hereda tu entorno, así que las claves van en variables de entorno.
+
+### Paquetes
+
+Lo que no debe vivir en el repo de umbra (los perfiles, rutinas y playbooks privados de un
+equipo, un diseñador con su herramienta) va en un **paquete**: un repo git con las carpetas
+`profiles/`, `routines/` y `playbooks/` que necesite.
+
+```bash
+umbra pack sync git@github.com:mi-equipo/umbra-equipo.git   # clona o pone al día
+umbra pack list                                             # qué aporta cada uno
+```
+
+Quedan en `~/.umbra/packs/<nombre>/`. umbra busca cada perfil y rutina en este orden: el
+proyecto (`.umbra/`), `~/.umbra/`, los paquetes y, por último, lo que trae umbra.
 
 ## 8. Lo que umbra aprende
 

@@ -57,6 +57,11 @@ def render_prompt(envelope: Envelope, commands: list[str]) -> str:
     if envelope.project_notes:
         notes = ("Contexto del proyecto y decisiones ya tomadas por la persona responsable "
                  f"(respétalas):\n\n{envelope.project_notes.rstrip()}\n\n")
+    if envelope.design:
+        notes += ("Diseño aprobado por la persona (pantallas en `design`; míralas con Read antes "
+                  "de empezar). Al construir, maqueta fiel a él: estructura, jerarquía, colores, "
+                  "tipografía y espaciado. Al verificar, compara la app con él y reporta como "
+                  "hallazgo cada diferencia visible.\n\n")
     return (
         "Ejecuta la etapa indicada en este sobre de umbra-engine. Trabaja solo en el directorio "
         f"actual. {allowed} Responde con la salida estructurada solicitada.\n\n{notes}"

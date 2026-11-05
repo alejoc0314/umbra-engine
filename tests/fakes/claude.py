@@ -99,6 +99,13 @@ elif mode == "browse":  # el verificador visita la app y deja una captura fuera 
     shots = Path(envelope["screenshots_dir"])
     (shots / "home.png").write_bytes(b"\x89PNG fake")
     structured_summary = f"visitado {envelope['app_url']} (HTTP {seen}); captura home.png"
+elif mode in ("design", "design_code"):  # el diseñador exporta una pantalla en design/
+    Path("design/png").mkdir(parents=True, exist_ok=True)
+    n = len(list(Path("design/png").glob("*.png"))) + 1
+    Path(f"design/png/pantalla-{n}.png").write_bytes(b"\x89PNG fake")
+    if mode == "design_code":  # y se pasa de la raya
+        calc.write_text("def add(a, b):\n    return a + b\n")
+    structured_images = [f"design/png/pantalla-{n}.png"]
 elif mode == "touch":  # una etapa de solo lectura que escribe
     Path("intruso.txt").write_text("x")
 elif mode == "error":
@@ -107,7 +114,10 @@ elif mode == "error":
 # "noop": no cambia nada
 
 structured = {"status": status, "summary": globals().get("structured_summary", f"modo {mode}"),
-              "questions": questions, "findings": findings}
+              "questions": questions, "findings": findings,
+              "images": globals().get("structured_images", [])}
+if mode == "plan_ui":  # el planificador ve que la tarea toca la interfaz
+    structured["needs_design"] = True
 
 
 def task(title, deps):
