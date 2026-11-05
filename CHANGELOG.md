@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.23.0 — 2026-11-05
+
 - umbra trae un **diseñador estándar** que no depende de ninguna herramienta: diseña en HTML y
   CSS, fotografía las pantallas con el navegador y deja el sistema del proyecto en
   `design/sistema.md`. Tu herramienta (Figma, Pencil u otra con MCP) y tus guías se conectan en
