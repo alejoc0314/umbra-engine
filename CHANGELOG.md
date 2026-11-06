@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.27.0 — 2026-11-05
+
 - **La réplica del diseño se prepara sola**: crea usuarios de prueba temporales con los medios
   de tu proyecto (y los borra), simula con datos de ejemplo lo externo que no funcione en local y
   captura todas las vistas, o se descarta entera y te dice por qué. En un espacio ve todos los
