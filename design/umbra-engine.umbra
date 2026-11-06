@@ -1,0 +1,3960 @@
+{
+  "version": "1.0",
+  "fileId": "54147a88-3af8-4452-a7f9-ba0ea6707aed",
+  "themes": {
+    "mode": [
+      "light",
+      "dark"
+    ]
+  },
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#FAF8F3"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#1E1F29"
+        }
+      ]
+    },
+    "border": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#D9D3C4"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#44475A"
+        }
+      ]
+    },
+    "error": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#B42318"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#FF5555"
+        }
+      ]
+    },
+    "mono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "muted": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#6A645A"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#A4A8C0"
+        }
+      ]
+    },
+    "on-primary": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#FFFFFF"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#1E1F29"
+        }
+      ]
+    },
+    "primary": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#6D3FD0"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#BD93F9"
+        }
+      ]
+    },
+    "success": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#1F7A3E"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#50FA7B"
+        }
+      ]
+    },
+    "surface": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#FFFFFF"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#282A36"
+        }
+      ]
+    },
+    "surface-hi": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#EFEBE1"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#343746"
+        }
+      ]
+    },
+    "text": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#1F1D1A"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#F8F8F2"
+        }
+      ]
+    },
+    "warn": {
+      "type": "color",
+      "value": [
+        {
+          "theme": {
+            "mode": "light"
+          },
+          "value": "#9A5B00"
+        },
+        {
+          "theme": {
+            "mode": "dark"
+          },
+          "value": "#FFB86C"
+        }
+      ]
+    }
+  },
+  "children": [
+    {
+      "id": "zcunl",
+      "type": "frame",
+      "name": "Atajo",
+      "reusable": true,
+      "x": 0,
+      "y": -200,
+      "alignItems": "center",
+      "gap": 6,
+      "layout": "horizontal",
+      "children": [
+        {
+          "id": "CxxCj",
+          "type": "frame",
+          "name": "Tecla",
+          "cornerRadius": 3,
+          "fill": "$surface-hi",
+          "padding": [
+            1,
+            6
+          ],
+          "children": [
+            {
+              "id": "aL77H",
+              "type": "text",
+              "name": "Tecla texto",
+              "content": "a",
+              "fill": "$primary",
+              "fontFamily": "$mono",
+              "fontSize": 12,
+              "fontWeight": "700",
+              "lineHeight": 1.54
+            }
+          ]
+        },
+        {
+          "id": "JvyOn",
+          "type": "text",
+          "name": "Verbo",
+          "content": "aprobar",
+          "fill": "$muted",
+          "fontFamily": "$mono",
+          "fontSize": 12,
+          "fontWeight": "normal",
+          "lineHeight": 1.54
+        }
+      ]
+    },
+    {
+      "id": "Y4Uug",
+      "type": "frame",
+      "name": "P · Dirección 1 — Bandeja dividida",
+      "x": 170,
+      "y": -200,
+      "width": 1280,
+      "height": 800,
+      "clip": true,
+      "fill": "$bg",
+      "gap": 0,
+      "layout": "vertical",
+      "theme": {
+        "mode": "dark"
+      },
+      "children": [
+        {
+          "id": "s5fQt",
+          "type": "frame",
+          "name": "Cabecera",
+          "width": "fill_container",
+          "alignItems": "center",
+          "fill": "$surface",
+          "gap": 8,
+          "layout": "horizontal",
+          "padding": [
+            10,
+            16
+          ],
+          "children": [
+            {
+              "id": "Jxz4X",
+              "type": "text",
+              "name": "umbra watch",
+              "content": "umbra watch",
+              "fill": "$primary",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "700",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "wiLEF",
+              "type": "text",
+              "name": "·",
+              "content": "·",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "fe8ub",
+              "type": "text",
+              "name": "umbra-engine",
+              "content": "umbra-engine",
+              "fill": "$text",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "Hj2Li",
+              "type": "text",
+              "name": "spec/035-contexto-y-lecc",
+              "content": "spec/035-contexto-y-lecciones",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "snCqj",
+              "type": "frame",
+              "name": "Fila",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "id": "uLqGP",
+              "type": "text",
+              "name": "2 en curso",
+              "content": "2 en curso",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "KIebn",
+              "type": "text",
+              "name": "·",
+              "content": "·",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "XNFkw",
+              "type": "text",
+              "name": "● 3 lecciones por decidi",
+              "content": "● 3 lecciones por decidir",
+              "fill": "$warn",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "700",
+              "lineHeight": 1.54
+            }
+          ]
+        },
+        {
+          "id": "mIUjK",
+          "type": "frame",
+          "name": "Pestañas",
+          "width": "fill_container",
+          "alignItems": "center",
+          "gap": 16,
+          "layout": "horizontal",
+          "padding": [
+            6,
+            16
+          ],
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 1,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          },
+          "children": [
+            {
+              "id": "MkwXo",
+              "type": "text",
+              "name": "t tareas",
+              "content": "t tareas",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "D0NDa",
+              "type": "text",
+              "name": "e ejecuciones",
+              "content": "e ejecuciones",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "evHw0",
+              "type": "frame",
+              "name": "Fila",
+              "fill": "$surface-hi",
+              "padding": [
+                0,
+                8
+              ],
+              "children": [
+                {
+                  "id": "CLZqj",
+                  "type": "text",
+                  "name": "l lecciones",
+                  "content": "l lecciones",
+                  "fill": "$primary",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "700",
+                  "lineHeight": 1.54
+                }
+              ]
+            },
+            {
+              "id": "bP0SH",
+              "type": "text",
+              "name": "? ayuda",
+              "content": "? ayuda",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            }
+          ]
+        },
+        {
+          "id": "yosUY",
+          "type": "frame",
+          "name": "Cuerpo",
+          "width": "fill_container",
+          "height": "fill_container",
+          "alignItems": "start",
+          "gap": 0,
+          "layout": "horizontal",
+          "children": [
+            {
+              "id": "hFkSk",
+              "type": "frame",
+              "name": "Lista",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 2,
+              "layout": "vertical",
+              "padding": [
+                16,
+                16
+              ],
+              "children": [
+                {
+                  "id": "C7I8C",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    0,
+                    0,
+                    12,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "id": "lcWJb",
+                      "type": "text",
+                      "name": "Lecciones",
+                      "content": "Lecciones",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "MT5xY",
+                      "type": "text",
+                      "name": "propuestas primero",
+                      "content": "propuestas primero",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "bNM8V",
+                      "type": "frame",
+                      "name": "Fila",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "id": "NCu7b",
+                      "type": "text",
+                      "name": "f filtrar: vigentes",
+                      "content": "f filtrar: vigentes",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "jptEp",
+                  "type": "text",
+                  "name": "POR DECIDIR · 3",
+                  "content": "POR DECIDIR · 3",
+                  "fill": "$warn",
+                  "fontFamily": "$mono",
+                  "fontSize": 11,
+                  "fontWeight": "700",
+                  "letterSpacing": 1,
+                  "lineHeight": 1.54
+                },
+                {
+                  "id": "LA0ty",
+                  "type": "frame",
+                  "name": "Fila L12",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "fill": "$surface-hi",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    4,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "id": "tSqNr",
+                      "type": "text",
+                      "name": "▌",
+                      "width": 8,
+                      "content": "▌",
+                      "fill": "$primary",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "AdVPH",
+                      "type": "text",
+                      "name": "●",
+                      "content": "●",
+                      "fill": "$warn",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "JCDfT",
+                      "type": "text",
+                      "name": "L12",
+                      "width": 36,
+                      "content": "L12",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "MWWIU",
+                      "type": "text",
+                      "name": "Ejecuta ruff --fix antes",
+                      "width": "fill_container",
+                      "content": "Ejecuta ruff --fix antes de entregar si tocas cli/",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "AlSu2",
+                      "type": "text",
+                      "name": "src/umbra/cli/**",
+                      "content": "src/umbra/cli/**",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "UECky",
+                  "type": "frame",
+                  "name": "Fila L11",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    4,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "id": "Gw9ck",
+                      "type": "text",
+                      "name": " ",
+                      "width": 8,
+                      "content": " ",
+                      "fill": "$primary",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "CIYYU",
+                      "type": "text",
+                      "name": "●",
+                      "content": "●",
+                      "fill": "$warn",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "ViYAu",
+                      "type": "text",
+                      "name": "L11",
+                      "width": 36,
+                      "content": "L11",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "JfMWP",
+                      "type": "text",
+                      "name": "No uses float para costo",
+                      "width": "fill_container",
+                      "content": "No uses float para costos: Decimal desde el parser",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "sr6KA",
+                      "type": "text",
+                      "name": "src/umbra/adapters/**",
+                      "content": "src/umbra/adapters/**",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "aQVyg",
+                  "type": "frame",
+                  "name": "Fila L10",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    4,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "id": "dcQlR",
+                      "type": "text",
+                      "name": " ",
+                      "width": 8,
+                      "content": " ",
+                      "fill": "$primary",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "fTy5o",
+                      "type": "text",
+                      "name": "●",
+                      "content": "●",
+                      "fill": "$warn",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "GD1tT",
+                      "type": "text",
+                      "name": "L10",
+                      "width": 36,
+                      "content": "L10",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "vc1Wo",
+                      "type": "text",
+                      "name": "Los tests de watch usan ",
+                      "width": "fill_container",
+                      "content": "Los tests de watch usan Pilot, no sleep()",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "pNq5a",
+                      "type": "text",
+                      "name": "tests/**/test_watch*",
+                      "content": "tests/**/test_watch*",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "vePAJ",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": 1,
+                  "height": 12
+                },
+                {
+                  "id": "v2MMC",
+                  "type": "text",
+                  "name": "VIGENTES · 4",
+                  "content": "VIGENTES · 4",
+                  "fill": "$success",
+                  "fontFamily": "$mono",
+                  "fontSize": 11,
+                  "fontWeight": "700",
+                  "letterSpacing": 1,
+                  "lineHeight": 1.54
+                },
+                {
+                  "id": "nUw54",
+                  "type": "frame",
+                  "name": "Fila L9",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    4,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "id": "ESmQr",
+                      "type": "text",
+                      "name": " ",
+                      "width": 8,
+                      "content": " ",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "t91UO",
+                      "type": "text",
+                      "name": "✓",
+                      "content": "✓",
+                      "fill": "$success",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "nEXNF",
+                      "type": "text",
+                      "name": "L9",
+                      "width": 36,
+                      "content": "L9",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "cQAw6",
+                      "type": "text",
+                      "name": "Migraciones SQLite: siem",
+                      "width": "fill_container",
+                      "content": "Migraciones SQLite: siempre con PRAGMA user_version",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "ggSkT",
+                      "type": "text",
+                      "name": "src/umbra/store/**",
+                      "content": "src/umbra/store/**",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "slSPy",
+                  "type": "frame",
+                  "name": "Fila L7",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    4,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "id": "xwZw7",
+                      "type": "text",
+                      "name": " ",
+                      "width": 8,
+                      "content": " ",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "kFssJ",
+                      "type": "text",
+                      "name": "✓",
+                      "content": "✓",
+                      "fill": "$success",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "DQKci",
+                      "type": "text",
+                      "name": "L7",
+                      "width": 36,
+                      "content": "L7",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "lfemc",
+                      "type": "text",
+                      "name": "Rutas con pathlib; nada ",
+                      "width": "fill_container",
+                      "content": "Rutas con pathlib; nada de '/' a mano (Windows)",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "mZobM",
+                      "type": "text",
+                      "name": "posible obsoleta",
+                      "content": "posible obsoleta",
+                      "fill": "$warn",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "qFXXs",
+                      "type": "text",
+                      "name": "src/umbra/**",
+                      "content": "src/umbra/**",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "GpMZP",
+                  "type": "frame",
+                  "name": "Fila L5",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    4,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "id": "ABXnS",
+                      "type": "text",
+                      "name": " ",
+                      "width": 8,
+                      "content": " ",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "OgJNV",
+                      "type": "text",
+                      "name": "✓",
+                      "content": "✓",
+                      "fill": "$success",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "hhdMs",
+                      "type": "text",
+                      "name": "L5",
+                      "width": 36,
+                      "content": "L5",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "XvyFc",
+                      "type": "text",
+                      "name": "Mensajes al usuario en e",
+                      "width": "fill_container",
+                      "content": "Mensajes al usuario en español llano, sin jerga",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "ZjbyK",
+                      "type": "text",
+                      "name": "src/umbra/cli/**",
+                      "content": "src/umbra/cli/**",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "cKHEl",
+                  "type": "frame",
+                  "name": "Fila L3",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    4,
+                    8
+                  ],
+                  "children": [
+                    {
+                      "id": "cRtBs",
+                      "type": "text",
+                      "name": " ",
+                      "width": 8,
+                      "content": " ",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "xIu9w",
+                      "type": "text",
+                      "name": "✓",
+                      "content": "✓",
+                      "fill": "$success",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "TWaKk",
+                      "type": "text",
+                      "name": "L3",
+                      "width": 36,
+                      "content": "L3",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "MI4Ys",
+                      "type": "text",
+                      "name": "Telegram: verificar chat",
+                      "width": "fill_container",
+                      "content": "Telegram: verificar chat_id antes de cualquier acción",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "sghM0",
+                      "type": "text",
+                      "name": "conflicto con L8",
+                      "content": "conflicto con L8",
+                      "fill": "$error",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "mMQjI",
+                      "type": "text",
+                      "name": "src/umbra/routines/bridg",
+                      "content": "src/umbra/routines/bridge.py",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "attCq",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": 1,
+                  "height": 12
+                },
+                {
+                  "id": "fYE6z",
+                  "type": "text",
+                  "name": "– 2 descartadas · ↺ 1 re",
+                  "content": "– 2 descartadas · ↺ 1 retirada   (f para verlas)",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54
+                }
+              ]
+            },
+            {
+              "id": "qDtNe",
+              "type": "frame",
+              "name": "Detalle",
+              "width": 440,
+              "height": "fill_container",
+              "fill": "$surface",
+              "gap": 0,
+              "layout": "vertical",
+              "padding": [
+                16,
+                20
+              ],
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 0,
+                "left": 1,
+                "right": 0,
+                "top": 0
+              },
+              "children": [
+                {
+                  "id": "nAkBG",
+                  "type": "frame",
+                  "name": "Fila",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "children": [
+                    {
+                      "id": "g4xkD",
+                      "type": "text",
+                      "name": "L12",
+                      "content": "L12",
+                      "fill": "$primary",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "yhRow",
+                      "type": "frame",
+                      "name": "Fila",
+                      "cornerRadius": 3,
+                      "fill": "$surface-hi",
+                      "padding": [
+                        0,
+                        6
+                      ],
+                      "children": [
+                        {
+                          "id": "sYBTG",
+                          "type": "text",
+                          "name": "propuesta",
+                          "content": "propuesta",
+                          "fill": "$warn",
+                          "fontFamily": "$mono",
+                          "fontSize": 12,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "oVayV",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": 1,
+                  "height": 12
+                },
+                {
+                  "id": "uTjRH",
+                  "type": "text",
+                  "name": "Ejecuta ruff --fix antes",
+                  "width": "fill_container",
+                  "content": "Ejecuta ruff --fix antes de entregar si tocas cli/",
+                  "fill": "$text",
+                  "fontFamily": "$mono",
+                  "fontSize": 15,
+                  "fontWeight": "700",
+                  "lineHeight": 1.4,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "zXAP9",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": 1,
+                  "height": 16
+                },
+                {
+                  "id": "NpbCS",
+                  "type": "text",
+                  "name": "ZONA",
+                  "content": "ZONA",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1,
+                  "lineHeight": 1.54
+                },
+                {
+                  "id": "pS9lC",
+                  "type": "text",
+                  "name": "src/umbra/cli/**",
+                  "content": "src/umbra/cli/**",
+                  "fill": "$text",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54
+                },
+                {
+                  "id": "pDxlI",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": 1,
+                  "height": 14
+                },
+                {
+                  "id": "KZCYu",
+                  "type": "text",
+                  "name": "POR QUÉ SE PROPONE · 3 o",
+                  "content": "POR QUÉ SE PROPONE · 3 orígenes",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1,
+                  "lineHeight": 1.54
+                },
+                {
+                  "id": "d4zCd",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    3,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "id": "flpT8",
+                      "type": "text",
+                      "name": "#31",
+                      "width": 28,
+                      "content": "#31",
+                      "fill": "$primary",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "n5zwk",
+                      "type": "text",
+                      "name": "Revisar",
+                      "width": 72,
+                      "content": "Revisar",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "fx7ZJ",
+                      "type": "text",
+                      "name": "rechazo: ruff E501 en cl",
+                      "width": "fill_container",
+                      "content": "rechazo: ruff E501 en cli/lessons.py",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "BSUlM",
+                      "type": "text",
+                      "name": "5 nov",
+                      "content": "5 nov",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "PEu8p",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    3,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "id": "xmGT0",
+                      "type": "text",
+                      "name": "#28",
+                      "width": 28,
+                      "content": "#28",
+                      "fill": "$primary",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "e5M6M",
+                      "type": "text",
+                      "name": "Verificar",
+                      "width": 72,
+                      "content": "Verificar",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "MFjAS",
+                      "type": "text",
+                      "name": "run detenido: lint falló",
+                      "width": "fill_container",
+                      "content": "run detenido: lint falló 2 veces",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "alnRT",
+                      "type": "text",
+                      "name": "4 nov",
+                      "content": "4 nov",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "SrWrW",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 8,
+                  "layout": "horizontal",
+                  "padding": [
+                    3,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "id": "Fb3Nj",
+                      "type": "text",
+                      "name": "#26",
+                      "width": 28,
+                      "content": "#26",
+                      "fill": "$primary",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "faRXe",
+                      "type": "text",
+                      "name": "persona",
+                      "width": 72,
+                      "content": "persona",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "OSG9Y",
+                      "type": "text",
+                      "name": "corrigió a mano el impor",
+                      "width": "fill_container",
+                      "content": "corrigió a mano el import sin usar",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "xdEzA",
+                      "type": "text",
+                      "name": "3 nov",
+                      "content": "3 nov",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "rLcg6",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": 1,
+                  "height": 14
+                },
+                {
+                  "id": "lgONI",
+                  "type": "text",
+                  "name": "SE APLICARÍA EN",
+                  "content": "SE APLICARÍA EN",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1,
+                  "lineHeight": 1.54
+                },
+                {
+                  "id": "QhpQX",
+                  "type": "text",
+                  "name": "tareas nuevas que toquen",
+                  "width": "fill_container",
+                  "content": "tareas nuevas que toquen src/umbra/cli/** (12 archivos hoy)",
+                  "fill": "$text",
+                  "fontFamily": "$mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "ROqdi",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": 1,
+                  "height": "fill_container"
+                },
+                {
+                  "id": "LfEEa",
+                  "type": "frame",
+                  "name": "Fila",
+                  "alignItems": "center",
+                  "gap": 20,
+                  "layout": "horizontal",
+                  "children": [
+                    {
+                      "id": "BHjCC",
+                      "type": "ref",
+                      "ref": "zcunl"
+                    },
+                    {
+                      "id": "zgXeN",
+                      "type": "ref",
+                      "ref": "zcunl",
+                      "descendants": {
+                        "JvyOn": {
+                          "content": "descartar"
+                        },
+                        "aL77H": {
+                          "content": "d"
+                        }
+                      }
+                    },
+                    {
+                      "id": "d88Ip",
+                      "type": "ref",
+                      "ref": "zcunl",
+                      "descendants": {
+                        "JvyOn": {
+                          "content": "ver historial"
+                        },
+                        "aL77H": {
+                          "content": "Enter"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "iNCni",
+          "type": "frame",
+          "name": "Pie",
+          "width": "fill_container",
+          "alignItems": "center",
+          "fill": "$surface",
+          "gap": 20,
+          "layout": "horizontal",
+          "padding": [
+            8,
+            16
+          ],
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 1
+          },
+          "children": [
+            {
+              "id": "yr1Et",
+              "type": "ref",
+              "name": "Atajo moverse",
+              "ref": "zcunl",
+              "descendants": {
+                "JvyOn": {
+                  "content": "moverse"
+                },
+                "aL77H": {
+                  "content": "j k"
+                }
+              }
+            },
+            {
+              "id": "Va9fW",
+              "type": "ref",
+              "name": "Atajo filtrar",
+              "ref": "zcunl",
+              "descendants": {
+                "JvyOn": {
+                  "content": "filtrar"
+                },
+                "aL77H": {
+                  "content": "f"
+                }
+              }
+            },
+            {
+              "id": "eplL4",
+              "type": "ref",
+              "name": "Atajo cosechar",
+              "ref": "zcunl",
+              "descendants": {
+                "JvyOn": {
+                  "content": "cosechar ahora"
+                },
+                "aL77H": {
+                  "content": "h"
+                }
+              }
+            },
+            {
+              "id": "uqG6W",
+              "type": "ref",
+              "name": "Atajo volver a tareas",
+              "ref": "zcunl",
+              "descendants": {
+                "JvyOn": {
+                  "content": "volver a tareas"
+                },
+                "aL77H": {
+                  "content": "Esc"
+                }
+              }
+            },
+            {
+              "id": "BJ1PL",
+              "type": "frame",
+              "name": "Hueco",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "id": "qEnpA",
+              "type": "text",
+              "name": "Nota pie",
+              "content": "las acciones de la lección están a la derecha",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 12,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "x03V4",
+      "type": "frame",
+      "name": "P · Dirección 2 — Libro de lecciones",
+      "x": 1550,
+      "y": -200,
+      "width": 1280,
+      "height": 800,
+      "clip": true,
+      "fill": "$bg",
+      "gap": 0,
+      "layout": "vertical",
+      "theme": {
+        "mode": "light"
+      },
+      "children": [
+        {
+          "id": "U4kwm",
+          "type": "frame",
+          "name": "Cabecera",
+          "width": "fill_container",
+          "alignItems": "center",
+          "gap": 8,
+          "layout": "horizontal",
+          "padding": [
+            20,
+            40,
+            8,
+            40
+          ],
+          "children": [
+            {
+              "id": "RrXwS",
+              "type": "text",
+              "name": "umbra",
+              "content": "umbra",
+              "fill": "$text",
+              "fontFamily": "$mono",
+              "fontSize": 15,
+              "fontWeight": "700",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "R3Gid",
+              "type": "text",
+              "name": "/",
+              "content": "/",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "Mb2Lo",
+              "type": "text",
+              "name": "umbra-engine",
+              "content": "umbra-engine",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "v7DDG",
+              "type": "text",
+              "name": "/",
+              "content": "/",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "la5vX",
+              "type": "text",
+              "name": "lecciones",
+              "content": "lecciones",
+              "fill": "$text",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "700",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "pJxlG",
+              "type": "frame",
+              "name": "Hueco",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "id": "hzSWC",
+              "type": "text",
+              "name": "cosecha: hace 12 min · 3",
+              "content": "cosecha: hace 12 min · 3 nuevas",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 12,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            }
+          ]
+        },
+        {
+          "id": "oNTRF",
+          "type": "frame",
+          "name": "Pestañas estado",
+          "width": "fill_container",
+          "alignItems": "center",
+          "gap": 32,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            40
+          ],
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 1,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          },
+          "children": [
+            {
+              "id": "Hf1SG",
+              "type": "frame",
+              "name": "Pestaña Por decidir",
+              "alignItems": "center",
+              "gap": 8,
+              "layout": "horizontal",
+              "padding": [
+                10,
+                0
+              ],
+              "stroke": "$text",
+              "strokeWidth": {
+                "bottom": 2,
+                "left": 0,
+                "right": 0,
+                "top": 0
+              },
+              "children": [
+                {
+                  "id": "vKk6O",
+                  "type": "text",
+                  "name": "Por decidir",
+                  "content": "Por decidir",
+                  "fill": "$text",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "700",
+                  "lineHeight": 1.54
+                },
+                {
+                  "id": "ak1kI",
+                  "type": "text",
+                  "name": "3",
+                  "content": "3",
+                  "fill": "$warn",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "700",
+                  "lineHeight": 1.54
+                }
+              ]
+            },
+            {
+              "id": "QhmkK",
+              "type": "frame",
+              "name": "Pestaña Vigentes",
+              "alignItems": "center",
+              "gap": 8,
+              "layout": "horizontal",
+              "padding": [
+                10,
+                0
+              ],
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 0,
+                "left": 0,
+                "right": 0,
+                "top": 0
+              },
+              "children": [
+                {
+                  "id": "Yla5X",
+                  "type": "text",
+                  "name": "Vigentes",
+                  "content": "Vigentes",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54
+                },
+                {
+                  "id": "G2orn",
+                  "type": "text",
+                  "name": "4",
+                  "content": "4",
+                  "fill": "$success",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "700",
+                  "lineHeight": 1.54
+                }
+              ]
+            },
+            {
+              "id": "GFi5o",
+              "type": "frame",
+              "name": "Pestaña Descartadas",
+              "alignItems": "center",
+              "gap": 8,
+              "layout": "horizontal",
+              "padding": [
+                10,
+                0
+              ],
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 0,
+                "left": 0,
+                "right": 0,
+                "top": 0
+              },
+              "children": [
+                {
+                  "id": "tmwDa",
+                  "type": "text",
+                  "name": "Descartadas",
+                  "content": "Descartadas",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54
+                },
+                {
+                  "id": "yP7k5",
+                  "type": "text",
+                  "name": "2",
+                  "content": "2",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "700",
+                  "lineHeight": 1.54
+                }
+              ]
+            },
+            {
+              "id": "X4KaT",
+              "type": "frame",
+              "name": "Pestaña Retiradas",
+              "alignItems": "center",
+              "gap": 8,
+              "layout": "horizontal",
+              "padding": [
+                10,
+                0
+              ],
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 0,
+                "left": 0,
+                "right": 0,
+                "top": 0
+              },
+              "children": [
+                {
+                  "id": "ZCjZr",
+                  "type": "text",
+                  "name": "Retiradas",
+                  "content": "Retiradas",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54
+                },
+                {
+                  "id": "ol8h2",
+                  "type": "text",
+                  "name": "1",
+                  "content": "1",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "700",
+                  "lineHeight": 1.54
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wUuGs",
+          "type": "frame",
+          "name": "Tabla",
+          "width": "fill_container",
+          "height": "fill_container",
+          "gap": 0,
+          "layout": "vertical",
+          "padding": [
+            16,
+            28
+          ],
+          "children": [
+            {
+              "id": "fUv0H",
+              "type": "frame",
+              "name": "Encabezado tabla",
+              "width": "fill_container",
+              "alignItems": "center",
+              "gap": 16,
+              "layout": "horizontal",
+              "padding": [
+                7,
+                12
+              ],
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 1,
+                "left": 0,
+                "right": 0,
+                "top": 0
+              },
+              "children": [
+                {
+                  "id": "Y2OfX",
+                  "type": "text",
+                  "name": "texto",
+                  "width": 24,
+                  "content": "",
+                  "fill": "$text",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "iwPzk",
+                  "type": "text",
+                  "name": "ID",
+                  "width": 48,
+                  "content": "ID",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1,
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "DoBdr",
+                  "type": "text",
+                  "name": "LECCIÓN",
+                  "width": "fill_container",
+                  "content": "LECCIÓN",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1,
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "XCPXz",
+                  "type": "text",
+                  "name": "ZONA",
+                  "width": 230,
+                  "content": "ZONA",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1,
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "oFwwG",
+                  "type": "text",
+                  "name": "ORÍGENES",
+                  "width": 80,
+                  "content": "ORÍGENES",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1,
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "u2dxF",
+                  "type": "text",
+                  "name": "FECHA",
+                  "width": 72,
+                  "content": "FECHA",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1,
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                }
+              ]
+            },
+            {
+              "id": "bEat9",
+              "type": "frame",
+              "name": "Fila L12 abierta",
+              "width": "fill_container",
+              "cornerRadius": 4,
+              "fill": "$surface-hi",
+              "gap": 0,
+              "layout": "vertical",
+              "children": [
+                {
+                  "id": "apORF",
+                  "type": "frame",
+                  "name": "Fila",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 16,
+                  "layout": "horizontal",
+                  "padding": [
+                    10,
+                    12
+                  ],
+                  "children": [
+                    {
+                      "id": "aJMOr",
+                      "type": "text",
+                      "name": "●",
+                      "width": 24,
+                      "content": "●",
+                      "fill": "$warn",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "tWVEG",
+                      "type": "text",
+                      "name": "L12",
+                      "width": 48,
+                      "content": "L12",
+                      "fill": "$primary",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "cpEa1",
+                      "type": "text",
+                      "name": "Ejecuta ruff --fix antes",
+                      "width": "fill_container",
+                      "content": "Ejecuta ruff --fix antes de entregar si tocas cli/",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "UAh9d",
+                      "type": "text",
+                      "name": "src/umbra/cli/**",
+                      "width": 230,
+                      "content": "src/umbra/cli/**",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "FHyyn",
+                      "type": "text",
+                      "name": "3",
+                      "width": 80,
+                      "content": "3",
+                      "fill": "$text",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "Tfv2b",
+                      "type": "text",
+                      "name": "5 nov",
+                      "width": 72,
+                      "content": "5 nov",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54,
+                      "textGrowth": "fixed-width"
+                    }
+                  ]
+                },
+                {
+                  "id": "OuNnZ",
+                  "type": "frame",
+                  "name": "Detalle en línea",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 32,
+                  "layout": "horizontal",
+                  "padding": [
+                    4,
+                    12,
+                    16,
+                    92
+                  ],
+                  "children": [
+                    {
+                      "id": "QMAQS",
+                      "type": "frame",
+                      "name": "Orígenes",
+                      "width": "fill_container",
+                      "gap": 4,
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "id": "dXh1Z",
+                          "type": "text",
+                          "name": "Intro orígenes",
+                          "content": "Se propone porque tropezó tres veces en la misma zona:",
+                          "fill": "$muted",
+                          "fontFamily": "$mono",
+                          "fontSize": 12,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        },
+                        {
+                          "id": "Fy7vO",
+                          "type": "frame",
+                          "name": "Origen #31",
+                          "alignItems": "center",
+                          "gap": 8,
+                          "layout": "horizontal",
+                          "children": [
+                            {
+                              "id": "Tr5uN",
+                              "type": "text",
+                              "name": "Tarea",
+                              "width": 32,
+                              "content": "#31",
+                              "fill": "$primary",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            },
+                            {
+                              "id": "htOCa",
+                              "type": "text",
+                              "name": "Etapa",
+                              "width": 80,
+                              "content": "Revisar",
+                              "fill": "$muted",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            },
+                            {
+                              "id": "UY6yi",
+                              "type": "text",
+                              "name": "Motivo",
+                              "width": 320,
+                              "content": "rechazo: ruff E501 en cli/lessons.py",
+                              "fill": "$text",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            },
+                            {
+                              "id": "M2iCQ",
+                              "type": "text",
+                              "name": "Fecha",
+                              "width": 48,
+                              "content": "5 nov",
+                              "fill": "$muted",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            }
+                          ]
+                        },
+                        {
+                          "id": "r7UGo",
+                          "type": "frame",
+                          "name": "Origen #28",
+                          "alignItems": "center",
+                          "gap": 8,
+                          "layout": "horizontal",
+                          "children": [
+                            {
+                              "id": "gVzWI",
+                              "type": "text",
+                              "name": "Tarea",
+                              "width": 32,
+                              "content": "#28",
+                              "fill": "$primary",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            },
+                            {
+                              "id": "VAYYv",
+                              "type": "text",
+                              "name": "Etapa",
+                              "width": 80,
+                              "content": "Verificar",
+                              "fill": "$muted",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            },
+                            {
+                              "id": "sbrFD",
+                              "type": "text",
+                              "name": "Motivo",
+                              "width": 320,
+                              "content": "run detenido: lint falló 2 veces",
+                              "fill": "$text",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            },
+                            {
+                              "id": "eD4w1",
+                              "type": "text",
+                              "name": "Fecha",
+                              "width": 48,
+                              "content": "4 nov",
+                              "fill": "$muted",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            }
+                          ]
+                        },
+                        {
+                          "id": "Z2o8c",
+                          "type": "frame",
+                          "name": "Origen #26",
+                          "alignItems": "center",
+                          "gap": 8,
+                          "layout": "horizontal",
+                          "children": [
+                            {
+                              "id": "JcoXY",
+                              "type": "text",
+                              "name": "Tarea",
+                              "width": 32,
+                              "content": "#26",
+                              "fill": "$primary",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            },
+                            {
+                              "id": "KHnI4",
+                              "type": "text",
+                              "name": "Etapa",
+                              "width": 80,
+                              "content": "persona",
+                              "fill": "$muted",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            },
+                            {
+                              "id": "GrD3J",
+                              "type": "text",
+                              "name": "Motivo",
+                              "width": 320,
+                              "content": "corrigió a mano el import sin usar",
+                              "fill": "$text",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            },
+                            {
+                              "id": "KrskG",
+                              "type": "text",
+                              "name": "Fecha",
+                              "width": 48,
+                              "content": "3 nov",
+                              "fill": "$muted",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal",
+                              "lineHeight": 1.54,
+                              "textGrowth": "fixed-width"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "id": "j5NWA",
+                      "type": "frame",
+                      "name": "Decisión",
+                      "width": 320,
+                      "gap": 12,
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "id": "nL1YL",
+                          "type": "text",
+                          "name": "Si la apruebas, la recib",
+                          "width": 300,
+                          "content": "Si la apruebas, la recibirán las tareas nuevas que toquen src/umbra/cli/** (12 archivos).",
+                          "fill": "$muted",
+                          "fontFamily": "$mono",
+                          "fontSize": 12,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54,
+                          "textGrowth": "fixed-width"
+                        },
+                        {
+                          "id": "jQAum",
+                          "type": "frame",
+                          "name": "Acciones",
+                          "alignItems": "center",
+                          "gap": 20,
+                          "layout": "horizontal",
+                          "children": [
+                            {
+                              "id": "mqHdU",
+                              "type": "ref",
+                              "name": "Atajo aprobar…",
+                              "ref": "zcunl",
+                              "descendants": {
+                                "CxxCj": {
+                                  "fill": "$surface"
+                                },
+                                "JvyOn": {
+                                  "content": "aprobar…"
+                                },
+                                "aL77H": {
+                                  "content": "a"
+                                }
+                              }
+                            },
+                            {
+                              "id": "of53C",
+                              "type": "ref",
+                              "name": "Atajo descartar",
+                              "ref": "zcunl",
+                              "descendants": {
+                                "CxxCj": {
+                                  "fill": "$surface"
+                                },
+                                "JvyOn": {
+                                  "content": "descartar"
+                                },
+                                "aL77H": {
+                                  "content": "d"
+                                }
+                              }
+                            },
+                            {
+                              "id": "dwnUs",
+                              "type": "ref",
+                              "name": "Atajo ver todo",
+                              "ref": "zcunl",
+                              "descendants": {
+                                "CxxCj": {
+                                  "fill": "$surface"
+                                },
+                                "JvyOn": {
+                                  "content": "ver todo"
+                                },
+                                "aL77H": {
+                                  "content": "v"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "qmeAs",
+              "type": "frame",
+              "name": "Fila L11",
+              "width": "fill_container",
+              "alignItems": "center",
+              "gap": 16,
+              "layout": "horizontal",
+              "padding": [
+                7,
+                12
+              ],
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 1,
+                "left": 0,
+                "right": 0,
+                "top": 0
+              },
+              "children": [
+                {
+                  "id": "vhH8X",
+                  "type": "text",
+                  "name": "●",
+                  "width": 24,
+                  "content": "●",
+                  "fill": "$warn",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "A8tx5",
+                  "type": "text",
+                  "name": "L11",
+                  "width": 48,
+                  "content": "L11",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "700",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "Y5fD7",
+                  "type": "text",
+                  "name": "No uses float para costo",
+                  "width": "fill_container",
+                  "content": "No uses float para costos: Decimal desde el parser",
+                  "fill": "$text",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "jBPBF",
+                  "type": "text",
+                  "name": "src/umbra/adapters/**",
+                  "width": 230,
+                  "content": "src/umbra/adapters/**",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "RMP0A",
+                  "type": "text",
+                  "name": "2",
+                  "width": 80,
+                  "content": "2",
+                  "fill": "$text",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "em5FC",
+                  "type": "text",
+                  "name": "5 nov",
+                  "width": 72,
+                  "content": "5 nov",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                }
+              ]
+            },
+            {
+              "id": "iXTBH",
+              "type": "frame",
+              "name": "Fila L10",
+              "width": "fill_container",
+              "alignItems": "center",
+              "gap": 16,
+              "layout": "horizontal",
+              "padding": [
+                7,
+                12
+              ],
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 1,
+                "left": 0,
+                "right": 0,
+                "top": 0
+              },
+              "children": [
+                {
+                  "id": "r60mt",
+                  "type": "text",
+                  "name": "●",
+                  "width": 24,
+                  "content": "●",
+                  "fill": "$warn",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "kEYkP",
+                  "type": "text",
+                  "name": "L10",
+                  "width": 48,
+                  "content": "L10",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "700",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "yfPUS",
+                  "type": "text",
+                  "name": "Los tests de watch usan ",
+                  "width": "fill_container",
+                  "content": "Los tests de watch usan Pilot, no sleep()",
+                  "fill": "$text",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "ROOFA",
+                  "type": "text",
+                  "name": "tests/**/test_watch*",
+                  "width": 230,
+                  "content": "tests/**/test_watch*",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "e7r3n",
+                  "type": "text",
+                  "name": "1",
+                  "width": 80,
+                  "content": "1",
+                  "fill": "$text",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "JD503",
+                  "type": "text",
+                  "name": "4 nov",
+                  "width": 72,
+                  "content": "4 nov",
+                  "fill": "$muted",
+                  "fontFamily": "$mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.54,
+                  "textGrowth": "fixed-width"
+                }
+              ]
+            },
+            {
+              "id": "ZfNtf",
+              "type": "frame",
+              "name": "Hueco",
+              "width": 1,
+              "height": 24
+            },
+            {
+              "id": "F6dUX",
+              "type": "text",
+              "name": "Resumen vigentes",
+              "content": "Vigentes: 4 · una posiblemente obsoleta (L7) y un conflicto (L3 ↔ L8) — pulsa 2 para revisarlas",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 12,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            }
+          ]
+        },
+        {
+          "id": "ku5Ar",
+          "type": "frame",
+          "name": "Pie",
+          "width": "fill_container",
+          "alignItems": "center",
+          "gap": 24,
+          "layout": "horizontal",
+          "padding": [
+            12,
+            40
+          ],
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 1
+          },
+          "children": [
+            {
+              "id": "O985r",
+              "type": "ref",
+              "name": "Atajo pestaña",
+              "ref": "zcunl",
+              "descendants": {
+                "JvyOn": {
+                  "content": "pestaña"
+                },
+                "aL77H": {
+                  "content": "1-4"
+                }
+              }
+            },
+            {
+              "id": "ya4oC",
+              "type": "ref",
+              "name": "Atajo moverse",
+              "ref": "zcunl",
+              "descendants": {
+                "JvyOn": {
+                  "content": "moverse"
+                },
+                "aL77H": {
+                  "content": "j k"
+                }
+              }
+            },
+            {
+              "id": "ghNRC",
+              "type": "ref",
+              "name": "Atajo abrir",
+              "ref": "zcunl",
+              "descendants": {
+                "JvyOn": {
+                  "content": "abrir"
+                },
+                "aL77H": {
+                  "content": "Enter"
+                }
+              }
+            },
+            {
+              "id": "mZ4OD",
+              "type": "ref",
+              "name": "Atajo cosechar ahora",
+              "ref": "zcunl",
+              "descendants": {
+                "JvyOn": {
+                  "content": "cosechar ahora"
+                },
+                "aL77H": {
+                  "content": "h"
+                }
+              }
+            },
+            {
+              "id": "ZAs2p",
+              "type": "ref",
+              "name": "Atajo volver",
+              "ref": "zcunl",
+              "descendants": {
+                "JvyOn": {
+                  "content": "volver"
+                },
+                "aL77H": {
+                  "content": "Esc"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d9Aqq",
+      "type": "frame",
+      "name": "P · Dirección 3 — Una a la vez",
+      "x": 2930,
+      "y": -200,
+      "width": 1280,
+      "height": 800,
+      "clip": true,
+      "fill": "$bg",
+      "gap": 0,
+      "layout": "vertical",
+      "theme": {
+        "mode": "dark"
+      },
+      "children": [
+        {
+          "id": "bkZBv",
+          "type": "frame",
+          "name": "Cabecera",
+          "width": "fill_container",
+          "alignItems": "center",
+          "gap": 8,
+          "layout": "horizontal",
+          "padding": [
+            14,
+            24
+          ],
+          "children": [
+            {
+              "id": "HdlTL",
+              "type": "text",
+              "name": "umbra watch",
+              "content": "umbra watch",
+              "fill": "$primary",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "700",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "ic9x6",
+              "type": "text",
+              "name": "· lecciones por decidir",
+              "content": "· lecciones por decidir",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "Xznmz",
+              "type": "frame",
+              "name": "Hueco",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "id": "s0IHI",
+              "type": "frame",
+              "name": "Progreso",
+              "alignItems": "center",
+              "gap": 6,
+              "layout": "horizontal",
+              "children": [
+                {
+                  "id": "B8xpD",
+                  "type": "frame",
+                  "name": "Paso 1",
+                  "width": 28,
+                  "height": 4,
+                  "cornerRadius": 2,
+                  "fill": "$warn"
+                },
+                {
+                  "id": "ZuHWN",
+                  "type": "frame",
+                  "name": "Paso 2",
+                  "width": 28,
+                  "height": 4,
+                  "cornerRadius": 2,
+                  "fill": "$border"
+                },
+                {
+                  "id": "ZKysd",
+                  "type": "frame",
+                  "name": "Paso 3",
+                  "width": 28,
+                  "height": 4,
+                  "cornerRadius": 2,
+                  "fill": "$border"
+                }
+              ]
+            },
+            {
+              "id": "YEEus",
+              "type": "text",
+              "name": "1 de 3",
+              "content": "1 de 3",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 12,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            }
+          ]
+        },
+        {
+          "id": "ku2Oc",
+          "type": "frame",
+          "name": "Escenario",
+          "width": "fill_container",
+          "height": "fill_container",
+          "alignItems": "center",
+          "gap": 0,
+          "justifyContent": "center",
+          "layout": "vertical",
+          "children": [
+            {
+              "id": "QbT7e",
+              "type": "frame",
+              "name": "Tarjeta",
+              "width": 760,
+              "cornerRadius": 8,
+              "fill": "$surface",
+              "gap": 28,
+              "layout": "vertical",
+              "padding": [
+                36,
+                40
+              ],
+              "stroke": "$border",
+              "strokeWidth": 1,
+              "children": [
+                {
+                  "id": "nlUEa",
+                  "type": "frame",
+                  "name": "Meta",
+                  "alignItems": "center",
+                  "gap": 12,
+                  "layout": "horizontal",
+                  "children": [
+                    {
+                      "id": "QUmvW",
+                      "type": "text",
+                      "name": "L12",
+                      "content": "L12",
+                      "fill": "$warn",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "700",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "W9phi",
+                      "type": "text",
+                      "name": "propuesta · 3 tropiezos ",
+                      "content": "propuesta · 3 tropiezos en src/umbra/cli/**",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    }
+                  ]
+                },
+                {
+                  "id": "dF8Gs",
+                  "type": "text",
+                  "name": "Texto lección",
+                  "width": "fill_container",
+                  "content": "Ejecuta ruff --fix antes de entregar si tocas cli/",
+                  "fill": "$text",
+                  "fontFamily": "$mono",
+                  "fontSize": 26,
+                  "fontWeight": "700",
+                  "lineHeight": 1.3,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "WBmWH",
+                  "type": "frame",
+                  "name": "Orígenes",
+                  "width": "fill_container",
+                  "gap": 6,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "id": "LkcXu",
+                      "type": "text",
+                      "name": "Rótulo origen",
+                      "content": "De dónde sale",
+                      "fill": "$muted",
+                      "fontFamily": "$mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.54
+                    },
+                    {
+                      "id": "fvnTY",
+                      "type": "frame",
+                      "name": "Origen #31",
+                      "width": "fill_container",
+                      "alignItems": "center",
+                      "gap": 10,
+                      "layout": "horizontal",
+                      "children": [
+                        {
+                          "id": "oNOoE",
+                          "type": "text",
+                          "name": "Guía",
+                          "content": "│",
+                          "fill": "$border",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        },
+                        {
+                          "id": "MssGy",
+                          "type": "text",
+                          "name": "Tarea",
+                          "width": 36,
+                          "content": "#31",
+                          "fill": "$primary",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54,
+                          "textGrowth": "fixed-width"
+                        },
+                        {
+                          "id": "RvGOd",
+                          "type": "text",
+                          "name": "Motivo",
+                          "width": "fill_container",
+                          "content": "Revisar rechazó el diff: ruff E501 en cli/lessons.py",
+                          "fill": "$text",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54,
+                          "textGrowth": "fixed-width"
+                        },
+                        {
+                          "id": "wGMJO",
+                          "type": "text",
+                          "name": "Fecha",
+                          "content": "5 nov",
+                          "fill": "$muted",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        }
+                      ]
+                    },
+                    {
+                      "id": "xom7j",
+                      "type": "frame",
+                      "name": "Origen #28",
+                      "width": "fill_container",
+                      "alignItems": "center",
+                      "gap": 10,
+                      "layout": "horizontal",
+                      "children": [
+                        {
+                          "id": "l9EYS",
+                          "type": "text",
+                          "name": "Guía",
+                          "content": "│",
+                          "fill": "$border",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        },
+                        {
+                          "id": "Qym6F",
+                          "type": "text",
+                          "name": "Tarea",
+                          "width": 36,
+                          "content": "#28",
+                          "fill": "$primary",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54,
+                          "textGrowth": "fixed-width"
+                        },
+                        {
+                          "id": "wn95R",
+                          "type": "text",
+                          "name": "Motivo",
+                          "width": "fill_container",
+                          "content": "Verificar se detuvo: el lint falló dos veces",
+                          "fill": "$text",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54,
+                          "textGrowth": "fixed-width"
+                        },
+                        {
+                          "id": "sGWDo",
+                          "type": "text",
+                          "name": "Fecha",
+                          "content": "4 nov",
+                          "fill": "$muted",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        }
+                      ]
+                    },
+                    {
+                      "id": "cxf1C",
+                      "type": "frame",
+                      "name": "Origen #26",
+                      "width": "fill_container",
+                      "alignItems": "center",
+                      "gap": 10,
+                      "layout": "horizontal",
+                      "children": [
+                        {
+                          "id": "HsGJH",
+                          "type": "text",
+                          "name": "Guía",
+                          "content": "│",
+                          "fill": "$border",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        },
+                        {
+                          "id": "zyMbt",
+                          "type": "text",
+                          "name": "Tarea",
+                          "width": 36,
+                          "content": "#26",
+                          "fill": "$primary",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54,
+                          "textGrowth": "fixed-width"
+                        },
+                        {
+                          "id": "jm4An",
+                          "type": "text",
+                          "name": "Motivo",
+                          "width": "fill_container",
+                          "content": "Corregiste a mano un import sin usar",
+                          "fill": "$text",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54,
+                          "textGrowth": "fixed-width"
+                        },
+                        {
+                          "id": "QBKkp",
+                          "type": "text",
+                          "name": "Fecha",
+                          "content": "3 nov",
+                          "fill": "$muted",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "JnlZ8",
+                  "type": "frame",
+                  "name": "Editor de una línea",
+                  "width": "fill_container",
+                  "cornerRadius": 6,
+                  "fill": "$surface-hi",
+                  "gap": 10,
+                  "layout": "vertical",
+                  "padding": 16,
+                  "children": [
+                    {
+                      "id": "uNu1K",
+                      "type": "frame",
+                      "name": "Encabezado editor",
+                      "alignItems": "center",
+                      "gap": 12,
+                      "layout": "horizontal",
+                      "children": [
+                        {
+                          "id": "WJyCK",
+                          "type": "text",
+                          "name": "Rótulo editor",
+                          "content": "Aprobar con este texto",
+                          "fill": "$success",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "700",
+                          "lineHeight": 1.54
+                        },
+                        {
+                          "id": "oC3yh",
+                          "type": "text",
+                          "name": "Ayuda editor",
+                          "content": "edítalo si quieres; el original queda en el historial",
+                          "fill": "$muted",
+                          "fontFamily": "$mono",
+                          "fontSize": 12,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        }
+                      ]
+                    },
+                    {
+                      "id": "tXdW9",
+                      "type": "frame",
+                      "name": "Campo",
+                      "width": "fill_container",
+                      "alignItems": "center",
+                      "cornerRadius": 4,
+                      "fill": "$bg",
+                      "gap": 8,
+                      "layout": "horizontal",
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "stroke": "$primary",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "id": "oudYH",
+                          "type": "text",
+                          "name": "Prompt",
+                          "content": "›",
+                          "fill": "$primary",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "700",
+                          "lineHeight": 1.54
+                        },
+                        {
+                          "id": "p1XUn",
+                          "type": "text",
+                          "name": "Valor editado",
+                          "width": "fill_container",
+                          "content": "Ejecuta ruff check --fix antes de entregar si tocas src/umbra/cli/",
+                          "fill": "$text",
+                          "fontFamily": "$mono",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54,
+                          "textGrowth": "fixed-width"
+                        },
+                        {
+                          "id": "Z9qKX",
+                          "type": "frame",
+                          "name": "Cursor",
+                          "width": 8,
+                          "height": 18,
+                          "fill": "$primary"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "QJTkB",
+                      "type": "frame",
+                      "name": "Zona",
+                      "alignItems": "center",
+                      "gap": 12,
+                      "layout": "horizontal",
+                      "children": [
+                        {
+                          "id": "IR7Ki",
+                          "type": "text",
+                          "name": "Rótulo zona",
+                          "content": "Zona",
+                          "fill": "$muted",
+                          "fontFamily": "$mono",
+                          "fontSize": 12,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        },
+                        {
+                          "id": "Np7sn",
+                          "type": "text",
+                          "name": "Valor zona",
+                          "content": "src/umbra/cli/**",
+                          "fill": "$text",
+                          "fontFamily": "$mono",
+                          "fontSize": 12,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        },
+                        {
+                          "id": "dsSuS",
+                          "type": "text",
+                          "name": "Ayuda zona",
+                          "content": "Tab para editar · p: todo el proyecto",
+                          "fill": "$muted",
+                          "fontFamily": "$mono",
+                          "fontSize": 12,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "du0Xv",
+                  "type": "frame",
+                  "name": "Acciones",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 24,
+                  "layout": "horizontal",
+                  "children": [
+                    {
+                      "id": "VROAL",
+                      "type": "ref",
+                      "name": "Atajo aprobar",
+                      "ref": "zcunl",
+                      "descendants": {
+                        "JvyOn": {
+                          "content": "aprobar",
+                          "fill": "$text",
+                          "fontSize": 13
+                        },
+                        "aL77H": {
+                          "content": "Enter"
+                        }
+                      }
+                    },
+                    {
+                      "id": "G4ARO",
+                      "type": "ref",
+                      "name": "Atajo cancelar",
+                      "ref": "zcunl",
+                      "descendants": {
+                        "JvyOn": {
+                          "content": "cancelar",
+                          "fill": "$text",
+                          "fontSize": 13
+                        },
+                        "aL77H": {
+                          "content": "Esc"
+                        }
+                      }
+                    },
+                    {
+                      "id": "Z739B",
+                      "type": "frame",
+                      "name": "Hueco",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "id": "V2eyh",
+                      "type": "ref",
+                      "name": "Atajo descartar",
+                      "ref": "zcunl",
+                      "descendants": {
+                        "JvyOn": {
+                          "content": "descartar",
+                          "fill": "$text",
+                          "fontSize": 13
+                        },
+                        "aL77H": {
+                          "content": "d"
+                        }
+                      }
+                    },
+                    {
+                      "id": "d1jqh",
+                      "type": "ref",
+                      "name": "Atajo saltar",
+                      "ref": "zcunl",
+                      "descendants": {
+                        "JvyOn": {
+                          "content": "saltar",
+                          "fill": "$text",
+                          "fontSize": 13
+                        },
+                        "aL77H": {
+                          "content": "s"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "pPvHc",
+          "type": "frame",
+          "name": "Pie",
+          "width": "fill_container",
+          "alignItems": "center",
+          "gap": 8,
+          "layout": "horizontal",
+          "padding": [
+            12,
+            24
+          ],
+          "children": [
+            {
+              "id": "Cb5xL",
+              "type": "text",
+              "name": "Siguientes",
+              "content": "Después: L11 No uses float para costos… · L10 Los tests de watch usan Pilot…",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 12,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            },
+            {
+              "id": "sJ2MO",
+              "type": "frame",
+              "name": "Hueco",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "id": "KhvTJ",
+              "type": "text",
+              "name": "Ayuda pie",
+              "content": "v vigentes (4) · Esc volver",
+              "fill": "$muted",
+              "fontFamily": "$mono",
+              "fontSize": 12,
+              "fontWeight": "normal",
+              "lineHeight": 1.54
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wABCI",
+      "type": "frame",
+      "name": "P · Telegram — /lecciones",
+      "x": 4310,
+      "y": -200,
+      "width": 390,
+      "height": 844,
+      "clip": true,
+      "fill": "$bg",
+      "gap": 0,
+      "layout": "vertical",
+      "theme": {
+        "mode": "dark"
+      },
+      "children": [
+        {
+          "id": "TqXQy",
+          "type": "frame",
+          "name": "Barra chat",
+          "width": "fill_container",
+          "alignItems": "center",
+          "fill": "$surface",
+          "gap": 12,
+          "layout": "horizontal",
+          "padding": [
+            52,
+            16,
+            12,
+            16
+          ],
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 1,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          },
+          "children": [
+            {
+              "id": "MyrxJ",
+              "type": "frame",
+              "name": "Avatar",
+              "width": 36,
+              "height": 36,
+              "alignItems": "center",
+              "cornerRadius": 18,
+              "fill": "$primary",
+              "justifyContent": "center",
+              "children": [
+                {
+                  "id": "xmfUP",
+                  "type": "text",
+                  "name": "Inicial",
+                  "content": "U",
+                  "fill": "$on-primary",
+                  "fontFamily": "Inter",
+                  "fontSize": 15,
+                  "fontWeight": "700",
+                  "lineHeight": 1.4
+                }
+              ]
+            },
+            {
+              "id": "KvtCM",
+              "type": "frame",
+              "name": "Título chat",
+              "gap": 0,
+              "layout": "vertical",
+              "children": [
+                {
+                  "id": "aQsqO",
+                  "type": "text",
+                  "name": "Nombre bot",
+                  "content": "umbra",
+                  "fill": "$text",
+                  "fontFamily": "Inter",
+                  "fontSize": 15,
+                  "fontWeight": "700",
+                  "lineHeight": 1.4
+                },
+                {
+                  "id": "e24Lp",
+                  "type": "text",
+                  "name": "Rol",
+                  "content": "bot",
+                  "fill": "$muted",
+                  "fontFamily": "Inter",
+                  "fontSize": 12,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.4
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "Hy9NG",
+          "type": "frame",
+          "name": "Conversación",
+          "width": "fill_container",
+          "height": "fill_container",
+          "clip": true,
+          "gap": 12,
+          "layout": "vertical",
+          "padding": [
+            16,
+            12
+          ],
+          "children": [
+            {
+              "id": "ttzkJ",
+              "type": "frame",
+              "name": "Mensaje bot",
+              "width": "fill_container",
+              "cornerRadius": 14,
+              "fill": "$surface",
+              "gap": 6,
+              "layout": "vertical",
+              "padding": [
+                10,
+                14
+              ],
+              "children": [
+                {
+                  "id": "PY8Dm",
+                  "type": "text",
+                  "name": "Aviso",
+                  "width": "fill_container",
+                  "content": "Hay 3 lecciones nuevas por decidir en umbra-engine.",
+                  "fill": "$text",
+                  "fontFamily": "Inter",
+                  "fontSize": 15,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.4,
+                  "textGrowth": "fixed-width"
+                },
+                {
+                  "id": "JSWtB",
+                  "type": "text",
+                  "name": "Hora",
+                  "content": "Escribe /lecciones para verlas · 10:42",
+                  "fill": "$muted",
+                  "fontFamily": "Inter",
+                  "fontSize": 12,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.4
+                }
+              ]
+            },
+            {
+              "id": "fstYZ",
+              "type": "frame",
+              "name": "Fila persona",
+              "width": "fill_container",
+              "alignItems": "center",
+              "gap": 8,
+              "layout": "horizontal",
+              "children": [
+                {
+                  "id": "PcmUg",
+                  "type": "frame",
+                  "name": "Hueco",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "id": "O9QUx",
+                  "type": "frame",
+                  "name": "Mensaje persona",
+                  "width": "fit_content",
+                  "cornerRadius": 14,
+                  "fill": "$primary",
+                  "gap": 6,
+                  "layout": "vertical",
+                  "padding": [
+                    10,
+                    14
+                  ],
+                  "children": [
+                    {
+                      "id": "e1a9g",
+                      "type": "text",
+                      "name": "Comando",
+                      "content": "/lecciones",
+                      "fill": "$on-primary",
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "600",
+                      "lineHeight": 1.4
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "c2ZoE",
+              "type": "frame",
+              "name": "Lección L12",
+              "width": "fill_container",
+              "gap": 6,
+              "layout": "vertical",
+              "children": [
+                {
+                  "id": "aMRUR",
+                  "type": "frame",
+                  "name": "Mensaje bot",
+                  "width": "fill_container",
+                  "cornerRadius": 14,
+                  "fill": "$surface",
+                  "gap": 6,
+                  "layout": "vertical",
+                  "padding": [
+                    10,
+                    14
+                  ],
+                  "children": [
+                    {
+                      "id": "ykyMS",
+                      "type": "text",
+                      "name": "Id",
+                      "content": "L12 · propuesta",
+                      "fill": "$warn",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "600",
+                      "lineHeight": 1.4
+                    },
+                    {
+                      "id": "MbauG",
+                      "type": "text",
+                      "name": "Texto",
+                      "width": "fill_container",
+                      "content": "Ejecuta ruff --fix antes de entregar si tocas cli/",
+                      "fill": "$text",
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "600",
+                      "lineHeight": 1.4,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "Ife5T",
+                      "type": "text",
+                      "name": "Zona",
+                      "width": "fill_container",
+                      "content": "Zona: src/umbra/cli/** · 3 tropiezos",
+                      "fill": "$muted",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.4,
+                      "textGrowth": "fixed-width"
+                    }
+                  ]
+                },
+                {
+                  "id": "bDLFA",
+                  "type": "frame",
+                  "name": "Botonera L12",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 6,
+                  "layout": "horizontal",
+                  "children": [
+                    {
+                      "id": "DqeB8",
+                      "type": "frame",
+                      "name": "Botón Aprobar",
+                      "width": "fill_container",
+                      "height": 44,
+                      "alignItems": "center",
+                      "cornerRadius": 8,
+                      "fill": "$surface-hi",
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "id": "GecqN",
+                          "type": "text",
+                          "name": "Etiqueta Aprobar",
+                          "content": "Aprobar",
+                          "fill": "$success",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "600",
+                          "lineHeight": 1.4
+                        }
+                      ]
+                    },
+                    {
+                      "id": "qRAg6",
+                      "type": "frame",
+                      "name": "Botón Descartar",
+                      "width": "fill_container",
+                      "height": 44,
+                      "alignItems": "center",
+                      "cornerRadius": 8,
+                      "fill": "$surface-hi",
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "id": "De1pK",
+                          "type": "text",
+                          "name": "Etiqueta Descartar",
+                          "content": "Descartar",
+                          "fill": "$error",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "600",
+                          "lineHeight": 1.4
+                        }
+                      ]
+                    },
+                    {
+                      "id": "dLDuR",
+                      "type": "frame",
+                      "name": "Botón Ver",
+                      "width": "fill_container",
+                      "height": 44,
+                      "alignItems": "center",
+                      "cornerRadius": 8,
+                      "fill": "$surface-hi",
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "id": "FjDLb",
+                          "type": "text",
+                          "name": "Etiqueta Ver",
+                          "content": "Ver",
+                          "fill": "$primary",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "600",
+                          "lineHeight": 1.4
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "lBwJP",
+              "type": "frame",
+              "name": "Lección L11",
+              "width": "fill_container",
+              "gap": 6,
+              "layout": "vertical",
+              "children": [
+                {
+                  "id": "ExrIJ",
+                  "type": "frame",
+                  "name": "Mensaje bot",
+                  "width": "fill_container",
+                  "cornerRadius": 14,
+                  "fill": "$surface",
+                  "gap": 6,
+                  "layout": "vertical",
+                  "padding": [
+                    10,
+                    14
+                  ],
+                  "children": [
+                    {
+                      "id": "WsSXj",
+                      "type": "text",
+                      "name": "Id",
+                      "content": "L11 · propuesta",
+                      "fill": "$warn",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "600",
+                      "lineHeight": 1.4
+                    },
+                    {
+                      "id": "Dl4uh",
+                      "type": "text",
+                      "name": "Texto",
+                      "width": "fill_container",
+                      "content": "No uses float para costos: Decimal desde el parser",
+                      "fill": "$text",
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "600",
+                      "lineHeight": 1.4,
+                      "textGrowth": "fixed-width"
+                    },
+                    {
+                      "id": "ww94j",
+                      "type": "text",
+                      "name": "Zona",
+                      "width": "fill_container",
+                      "content": "Zona: src/umbra/adapters/** · 2 tropiezos",
+                      "fill": "$muted",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "lineHeight": 1.4,
+                      "textGrowth": "fixed-width"
+                    }
+                  ]
+                },
+                {
+                  "id": "MSCmX",
+                  "type": "frame",
+                  "name": "Botonera L11",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "gap": 6,
+                  "layout": "horizontal",
+                  "children": [
+                    {
+                      "id": "Ip5Od",
+                      "type": "frame",
+                      "name": "Botón Aprobar",
+                      "width": "fill_container",
+                      "height": 44,
+                      "alignItems": "center",
+                      "cornerRadius": 8,
+                      "fill": "$surface-hi",
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "id": "e2TUX",
+                          "type": "text",
+                          "name": "Etiqueta Aprobar",
+                          "content": "Aprobar",
+                          "fill": "$success",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "600",
+                          "lineHeight": 1.4
+                        }
+                      ]
+                    },
+                    {
+                      "id": "cHexD",
+                      "type": "frame",
+                      "name": "Botón Descartar",
+                      "width": "fill_container",
+                      "height": 44,
+                      "alignItems": "center",
+                      "cornerRadius": 8,
+                      "fill": "$surface-hi",
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "id": "FzCdA",
+                          "type": "text",
+                          "name": "Etiqueta Descartar",
+                          "content": "Descartar",
+                          "fill": "$error",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "600",
+                          "lineHeight": 1.4
+                        }
+                      ]
+                    },
+                    {
+                      "id": "bDJy6",
+                      "type": "frame",
+                      "name": "Botón Ver",
+                      "width": "fill_container",
+                      "height": 44,
+                      "alignItems": "center",
+                      "cornerRadius": 8,
+                      "fill": "$surface-hi",
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "id": "pPzwt",
+                          "type": "text",
+                          "name": "Etiqueta Ver",
+                          "content": "Ver",
+                          "fill": "$primary",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "600",
+                          "lineHeight": 1.4
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "GJYD5",
+              "type": "frame",
+              "name": "Mensaje bot",
+              "width": "fill_container",
+              "cornerRadius": 14,
+              "fill": "$surface",
+              "gap": 6,
+              "layout": "vertical",
+              "padding": [
+                10,
+                14
+              ],
+              "children": [
+                {
+                  "id": "IfxGJ",
+                  "type": "text",
+                  "name": "Confirmación",
+                  "width": "fill_container",
+                  "content": "✓ L10 aprobada por ti desde Telegram. Se aplicará en las tareas nuevas que toquen tests/**/test_watch*.",
+                  "fill": "$text",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal",
+                  "lineHeight": 1.4,
+                  "textGrowth": "fixed-width"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
