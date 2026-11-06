@@ -69,5 +69,17 @@ class StageOutput(BaseModel):
         description="Solo DESIGN: 2 o 3 direcciones visuales distintas para que la persona elija")
 
 
+class LessonDraft(BaseModel):
+    """Lo que devuelve el redactor de lecciones (spec 035). El motor lo valida y decide."""
+
+    skip: bool = Field(False, description="true si no hay nada generalizable (p. ej. red)")
+    text: str = Field("", description="Regla corta e imperativa, ≤ 280 caracteres")
+    zone: list[str] = Field(default_factory=list,
+                            description="Globs relativos al proyecto; [] = todo el proyecto")
+    same_as: int | None = Field(None, description="Equivale a la lección L<n> recibida")
+    conflicts_with: list[int] = Field(default_factory=list,
+                                      description="Contradice estas lecciones recibidas")
+
+
 def output_schema() -> dict:
     return StageOutput.model_json_schema()

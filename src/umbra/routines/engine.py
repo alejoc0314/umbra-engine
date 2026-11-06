@@ -20,7 +20,7 @@ from umbra.contracts.envelope import Envelope, Finding, StageOutput, TaskInfo
 from umbra.contracts.profile import McpServer, Profile
 from umbra.contracts.routine import Stage
 from umbra.contracts.summary import SummaryOutput
-from umbra.management import design_systems, explore, memory, taste
+from umbra.management import design_systems, explore, lessons, memory, taste
 from umbra.routines import parts as pt
 from umbra.unified import config as cfg
 from umbra.unified import project as proj
@@ -280,6 +280,24 @@ class Engine:
 
     # ---------- ciclo principal ----------
     def process(self, run_id: str) -> str:
+        """Avanza la ejecución; si deja RUNNING, cosecha sus tropiezos como lecciones."""
+        if self.run_row(run_id)["status"] in (*TERMINAL, "WAITING_APPROVAL", "PAUSED"):
+            return self.run_row(run_id)["status"]
+        status = self._process(run_id)
+        if status != "RUNNING":
+            self.harvest_lessons(run_id)
+        return status
+
+    def harvest_lessons(self, run_id: str) -> None:
+        """Propone lecciones de esta ejecución y de lo pendiente del proyecto (p. ej. un
+        `umbra reject`). Nunca cambia el estado de la ejecución."""
+        try:
+            lessons.harvest(self, [run_id])
+            lessons.harvest(self)
+        except Exception as e:  # noqa: BLE001 — proponer ayuda, pero nunca frena
+            self.event(run_id, "lessons.failed", reason=str(e) or type(e).__name__)
+
+    def _process(self, run_id: str) -> str:
         run = self.run_row(run_id)
         if run["status"] in (*TERMINAL, "WAITING_APPROVAL", "PAUSED"):
             return run["status"]
@@ -1001,7 +1019,8 @@ class Engine:
                       previous: list[Finding] | None = None,
                       output_model: type[BaseModel] = StageOutput,
                       diff: str | None = None, app_url: str | None = None,
-                      design: list[str] | None = None) -> tuple[str, AgentResult]:
+                      design: list[str] | None = None,
+                      extra_notes: str | None = None) -> tuple[str, AgentResult]:
         attempt_no = self.conn.execute(
             "SELECT COALESCE(MAX(attempt_no), 0) + 1 FROM attempt WHERE run_id = ? AND stage = ?",
             (run["id"], stage)).fetchone()[0]
@@ -1030,6 +1049,9 @@ class Engine:
         if stage in ("design", "critic"):  # tus guías de diseño y tu gusto
             envelope.project_notes = "\n\n".join(filter(None, [
                 envelope.project_notes, self.design_guides(), taste.load()]))
+        if extra_notes:  # p. ej. las lecciones existentes, para el redactor de lecciones
+            envelope.project_notes = "\n\n".join(filter(None, [envelope.project_notes,
+                                                               extra_notes]))
         shots = None
         if app_url:  # las capturas caen fuera del workspace: no ensucian el diff
             shots = self.udir / "artifacts" / f"{attempt_id}-shots"
@@ -1412,6 +1434,7 @@ def reject(engine: Engine, run_id: str, actor: str, reason: str) -> dict:
             (new_id(), run_id, run["head_sha"], actor, now()))
     engine.set_run(run_id, status="CANCELLED")
     engine.event(run_id, "approval.rejected", actor=actor, reason=reason)
+    engine.event(run_id, "run.rejected", actor=actor, reason=reason, stage=run["stage"])
     cleanup(engine, run_id, f"Rechazado en umbra: {reason}")
     return {"run_id": run_id, "status": "CANCELLED"}
 

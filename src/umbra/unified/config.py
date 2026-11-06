@@ -28,6 +28,17 @@ def context_limit(config: dict) -> int:
     return value
 
 
+LESSONS_WRITER = "lesson-writer"  # perfil que redacta las lecciones; "" = borrador determinista
+
+
+def lessons_settings(config: dict) -> dict:
+    """`[lessons] enabled` y `writer`; un valor no válido toma el de por defecto."""
+    section = config.get("lessons") or {}
+    enabled, writer = section.get("enabled", True), section.get("writer", LESSONS_WRITER)
+    return {"enabled": enabled if isinstance(enabled, bool) else True,
+            "writer": writer if isinstance(writer, str) else LESSONS_WRITER}
+
+
 def umbra_home() -> Path:
     return Path(os.environ.get("UMBRA_HOME", Path.home() / ".umbra"))
 

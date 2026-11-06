@@ -115,3 +115,42 @@ def test_o_opens_and_then_resumes_from_watch(env):
         assert any('umbra done 1 -m "arreglo"' in n for n in notes)
 
     drive(env, scenario)
+
+
+def test_human_fix_proposes_a_lesson(env):
+    """Spec 035, US3: la corrección de la persona se convierte en una lección propuesta."""
+    import json
+
+    from umbra.management import lessons
+    blocked_task(env)
+    fix_by_hand(env)
+    env.umbra("done", "1", "-m", "Usa el operador + al sumar", "--foreground")
+    fixed = [json.loads(r[0]) for r in env.conn.execute(
+        "SELECT payload FROM event WHERE type = 'human.fixed'")]
+    assert fixed and fixed[0]["message"] == "Usa el operador + al sumar"
+    assert fixed[0]["files"] == ["calc.py"]
+    db = lessons.open_db()
+    row = db.execute("SELECT l.number, l.status, l.zone FROM lesson l JOIN lesson_origin o"
+                     " ON o.number = l.number WHERE o.kind = 'human_correction'").fetchone()
+    assert row["status"] == "proposed" and json.loads(row["zone"]) == ["calc.py"]
+    text = db.execute("SELECT text FROM lesson WHERE number = ?", (row["number"],)).fetchone()
+    assert text[0] == "Usa el operador + al sumar"
+
+
+def test_reject_records_the_reason_and_is_harvested_later(env):
+    """Spec 035, US3: `umbra reject` deja `run.rejected` con el motivo; la siguiente ejecución
+    que termina lo cosecha como lección."""
+    import json
+
+    from umbra.management import lessons
+    env.mode("ok")
+    env.umbra("task", "add", "Sumar", "-a", "add(2, 3) == 5")
+    env.umbra("run", "1", "--foreground")
+    env.umbra("reject", "1", "-m", "No cambies la firma pública")
+    rejected = [json.loads(r[0]) for r in env.conn.execute(
+        "SELECT payload FROM event WHERE type = 'run.rejected'")]
+    assert rejected and rejected[0]["reason"] == "No cambies la firma pública"
+    env.umbra("task", "add", "Restar", "-a", "sub(3, 2) == 1")
+    env.umbra("run", "2", "--foreground")
+    texts = [r[0] for r in lessons.open_db().execute("SELECT text FROM lesson")]
+    assert "No cambies la firma pública" in texts
