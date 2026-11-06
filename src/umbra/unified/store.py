@@ -122,7 +122,11 @@ ALTER TABLE task ADD COLUMN allowed_paths TEXT NOT NULL DEFAULT '[]';
 _V6 = """
 ALTER TABLE run ADD COLUMN base_branch TEXT;
 """
-MIGRATIONS = [_V1, _V2, _V3, _V4, _V5, _V6]
+# espacios de trabajo (spec 032): en qué repo(s) del espacio se hace la tarea (lista JSON)
+_V7 = """
+ALTER TABLE task ADD COLUMN repos TEXT NOT NULL DEFAULT '[]';
+"""
+MIGRATIONS = [_V1, _V2, _V3, _V4, _V5, _V6, _V7]
 
 
 def now() -> str:

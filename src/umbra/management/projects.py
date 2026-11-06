@@ -25,8 +25,10 @@ def load() -> list[dict]:
     return [p for p in data if isinstance(p, dict) and p.get("root")]
 
 
-def register(root: Path, stack: str) -> None:
-    entries = [p for p in load() if Path(p["root"]) != root]
+def register(root: Path, stack: str, hide: list[Path] = ()) -> None:
+    """`hide`: los repos de un espacio, que dejan de aparecer sueltos (se ven en el espacio)."""
+    gone = {Path(p).resolve() for p in (root, *hide)}
+    entries = [p for p in load() if Path(p["root"]).resolve() not in gone]
     entries.append({"root": root.as_posix(), "name": root.name, "stack": stack})
     try:
         _path().parent.mkdir(parents=True, exist_ok=True)

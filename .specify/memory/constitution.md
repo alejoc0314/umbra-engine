@@ -89,8 +89,9 @@ plan de la feature correspondiente.
 - Dependencias de ejecución permitidas: typer, rich, pydantic (v2), pyyaml; textual solo para la
   vista en vivo y la pantalla de conversación de requisitos. Cualquier otra MUST justificarse en
   el plan de la feature.
-- Estado: SQLite (modo WAL) en `.umbra/umbra.db` por proyecto; configuración en TOML y rutinas en
-  YAML. Costos MUST almacenarse como decimales, nunca como float.
+- Estado: SQLite (modo WAL) en `.umbra/umbra.db` por proyecto o por espacio de trabajo (una
+  carpeta padre con varios repos); configuración en TOML y rutinas en YAML. Costos MUST
+  almacenarse como decimales, nunca como float.
 - Adaptadores iniciales: Claude Code (`claude -p`) y Codex (`codex exec`). La capa conversacional
   usa el `claude` interactivo del usuario con su propio login; la conversación de requisitos usa
   `claude -p` en stream-json con ese mismo login, y umbra controla sus fases y lo que puede
@@ -100,8 +101,8 @@ plan de la feature correspondiente.
   un agente. No se concatenan entradas de modelo a un shell.
 - Multiplataforma: Windows y POSIX. Gestión de procesos, rutas y locks MUST funcionar en ambos.
 - Fuera de alcance: despliegue a producción y escritura sobre bases de datos productivas.
-- Ejecución paralela: hasta `[blocks] parallel` tareas a la vez por repositorio, cada una con su
-  worktree, su lease y su conexión; las dependencias entre tareas se respetan siempre.
+- Ejecución paralela: hasta `[blocks] parallel` tareas a la vez por proyecto o espacio, cada una
+  con su worktree, su lease y su conexión; las dependencias entre tareas se respetan siempre.
 
 ## Flujo de desarrollo y controles de calidad
 
@@ -127,4 +128,4 @@ specs existentes. Las aprueba el responsable del proyecto (Alejandro). Versionad
 MAJOR para eliminar o redefinir principios, MINOR para añadir principios o secciones, PATCH para
 aclaraciones. La guía de diseño de referencia es `docs/design.md`.
 
-**Version**: 1.2.1 | **Ratified**: 2026-10-29 | **Last Amended**: 2026-11-04
+**Version**: 1.2.2 | **Ratified**: 2026-10-29 | **Last Amended**: 2026-11-05

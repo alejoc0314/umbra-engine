@@ -232,7 +232,7 @@ class Loader:
             else:
                 elapsed = "-"
             rows.append(TaskRow(
-                t["number"], t["title"], ex.short(exp),
+                t["number"], ex.task_title(t), ex.short(exp),
                 ex.spend_text(cost, tokens) if t["run_id"] else "$0.00",
                 theme.state_key(t["run_status"] or t["status"]), t["run_status"],
                 group_of(t["run_status"], t["status"]),
@@ -348,9 +348,9 @@ class Loader:
         if key in self.extras:
             return self.extras[key]
         try:
-            numstat = git.run(self.root, "diff", "--numstat", run["base_sha"], run["head_sha"])
-            patch = git.run(self.root, "diff", run["base_sha"], run["head_sha"])
-        except git.GitError as e:
+            ctx = service.Ctx(self.root, self.udir, self.conn, service.load(self.root).config)
+            numstat, patch = service.run_diff(ctx, run)
+        except (git.GitError, service.OpError) as e:
             return ([], f"No se pudo calcular el diff: {e}", False)
         files = []
         for line in numstat.splitlines():

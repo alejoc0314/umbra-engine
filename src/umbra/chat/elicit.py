@@ -76,7 +76,30 @@ def phase_message(phase: str, idea: str | None = None, comment: str | None = Non
     if phase != "specify" or not idea:
         return cmd
     retro = RETRO if root and (root / "specs" / "000-linea-base").is_dir() else ""
-    return f"{cmd} {idea}{retro}"
+    return f"{cmd} {idea}{retro}{workspace_note(root)}"
+
+
+def workspace_note(root: Path | None) -> str:
+    """En un espacio de trabajo (spec 032), cada historia dice en qué repo se hace."""
+    from umbra.unified import project
+    try:
+        members = project.members(root, project.load_project(root)) if root else {}
+    except project.NotInitialized:
+        return ""
+    if not members:
+        return ""
+    repos = []
+    for name, path in members.items():
+        try:
+            stack = project.load_project(path).get("project", {}).get("stack", "?")
+        except project.NotInitialized:
+            stack = "?"
+        repos.append(f"{name} ({stack})")
+    return ("\n\nEste proyecto es un espacio de trabajo con varios repos, cada uno en su carpeta: "
+            f"{', '.join(repos)}. Cada historia de usuario MUST llevar, debajo de su título, una "
+            "línea `**Repo**: <nombre>` con el repo donde se hace. Ordena las historias para que "
+            "lo que un repo necesita de otro vaya antes (por ejemplo, el endpoint del back antes "
+            "de la pantalla del front): cada historia espera a que la anterior esté integrada.")
 
 
 # --- preguntas -------------------------------------------------------------------------------

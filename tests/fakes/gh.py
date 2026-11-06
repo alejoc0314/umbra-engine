@@ -57,6 +57,12 @@ def remote_sha(branch):
     return out[0] if out else None
 
 
+def repo():
+    """El repo de la carpeta actual, como `gh`: su remoto origin."""
+    return subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True,
+                          text=True).stdout.strip()
+
+
 def refresh(pr):
     if pr["state"] == "OPEN":
         pr["headRefOid"] = remote_sha(pr["head"]) or pr["headRefOid"]
@@ -89,14 +95,15 @@ def public(pr, fields):
 
 args = sys.argv[1:]
 if args[:2] == ["pr", "list"]:
-    prs = [refresh(p) for p in state["prs"] if p["head"] == opt("--head")]
+    prs = [refresh(p) for p in state["prs"]
+           if p["head"] == opt("--head") and p.get("repo", repo()) == repo()]
     save()
     print(json.dumps([public(p, opt("--json")) for p in prs]))
 elif args[:2] == ["pr", "create"]:
     n = len(state["prs"]) + 1
     pr = {"number": n, "url": f"https://github.test/pr/{n}", "state": "OPEN",
           "head": opt("--head"), "base": opt("--base"), "title": opt("--title"),
-          "body": opt("--body"),
+          "body": opt("--body"), "repo": repo(),
           "headRefOid": remote_sha(opt("--head")), "mergeCommit": None}
     state["prs"].append(pr)
     save()
