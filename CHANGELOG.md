@@ -7,6 +7,9 @@ versión publicada.
 
 ## Sin publicar
 
+- Adoptar una carpeta con varios repos (`/adoptar` en Telegram) crea un espacio de trabajo en vez
+  de convertir la carpeta padre en un repo que los envuelve.
+
 ## v0.26.0 — 2026-11-05
 
 - **Espacios de trabajo** para proyectos con front y back en repos separados: `umbra init` en la

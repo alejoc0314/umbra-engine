@@ -38,7 +38,7 @@ def init(yes: bool = typer.Option(False, "--yes", "-y", help="Crear el espacio s
             for r in result["repos"]:
                 c.print(f"  {r['name']} (stack: {r['stack']})")
             c.print("Orden de integración en [workspace] repos de .umbra/project.toml; los comandos"
-                    " de cada repo, en su propio .umbra/project.toml.")
+                    " de cada repo, en su propio .umbra/project.toml.", markup=False)
             return
         if result["created"]:
             c.print(f"[green]umbra inicializado[/green] en {result['root']} "
