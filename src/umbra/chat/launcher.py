@@ -22,7 +22,8 @@ NO_RESULT = "claude no devolvió un evento result"  # el texto de parse_stream
 
 # db change solo propone: el cambio espera a la persona (db apply / botón de Telegram)
 QUERY = ("status", "explain", "log", "evidence", "task list", "doctor", "finding list",
-         "spec list", "db query", "db list", "db change")
+         "spec list", "db query", "db list", "db change", "lesson list", "lesson show")
+# lesson approve/discard/retire/resolve: decidir una lección es solo de la persona (spec 035)
 # ponytail: `exec` no va aquí: en Claude Code `ask` gana sobre `allow` y taparía los `safe`.
 STATEFUL = ("plan", "run", "pause", "resume", "cancel", "retry", "task add", "task edit",
             "task accept", "task drop", "task deps", "spec tasks")

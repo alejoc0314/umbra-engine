@@ -15,6 +15,9 @@ versión publicada.
 - **umbra propone lecciones de sus tropiezos**: cuando una tarea tropieza (rechazo en Revisar,
   ejecución detenida, tu arreglo con `umbra done -m` o un `umbra reject`), umbra propone una
   lección con su origen y su zona; no se aplica a ninguna tarea hasta que la apruebes.
+- **Tú decides sobre cada lección**: `umbra lesson list|show|approve|discard|retire|resolve|harvest`
+  (todos con `--json`), la tecla `l` en `umbra watch` y `/lecciones` en Telegram. Las aprobadas
+  llegan a las tareas nuevas de su zona; el chat solo puede consultarlas.
 
 ## v0.27.0 — 2026-11-05
 

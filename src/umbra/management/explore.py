@@ -283,8 +283,25 @@ def build_package(files: list[dict], tests: list[dict], lessons: list[dict],
     return md, summary
 
 
+def _approved_lessons(key: str | None, files: list[str], config: dict,
+                      notes: list[str]) -> list[dict]:
+    """Las lecciones aprobadas que aplican a la zona; si `lessons.db` falla, ninguna."""
+    from umbra.management import lessons as lessons_db
+    if not key or not cfg.lessons_settings(config)["enabled"]:
+        return []
+    try:
+        db = lessons_db.open_db()
+        try:
+            return lessons_db.applicable(db, key, files)
+        finally:
+            db.close()
+    except Exception as e:  # noqa: BLE001 — las lecciones ayudan, pero nunca bloquean
+        notes.append(f"no se pudieron leer las lecciones: {e or type(e).__name__}")
+        return []
+
+
 def explore(conn: sqlite3.Connection | None, parts, task: TaskInfo, config: dict,
-            run_id: str | None = None) -> tuple[str, dict]:
+            run_id: str | None = None, lesson_key: str | None = None) -> tuple[str, dict]:
     """La exploración completa de una tarea: zona, tests, historia, tareas anteriores y
     lecciones, armadas en un paquete con el tope de `[context] max_chars`."""
     budget = Budget()
@@ -295,8 +312,8 @@ def explore(conn: sqlite3.Connection | None, parts, task: TaskInfo, config: dict
     tests = tests_for(parts, files, budget)
     hist = history(parts, files, budget)
     tasks = previous_tasks(conn, parts, files, run_id, budget)
-    lessons: list[dict] = []  # las lecciones aprobadas llegan con la historia 4 de la spec
     notes = []
+    lessons = _approved_lessons(lesson_key, [f["path"] for f in files], config, notes)
     if not any(_git(p.wt, budget, "rev-parse", "--verify", "--quiet", "HEAD") for p in parts):
         notes.append("sin historia de git: el repo no tiene commits")
     elif not hist:

@@ -29,7 +29,7 @@ from umbra import service
 from umbra.blocks import lease
 from umbra.cli import theme
 from umbra.cli.explain import renderable
-from umbra.cli.modals import AskText, Confirm, PickOne, PickStage, TextView
+from umbra.cli.modals import AskText, Confirm, LessonsScreen, PickOne, PickStage, TextView
 from umbra.cli.watch_data import Loader, Snapshot
 from umbra.unified import clock, project, version
 from umbra.unified import explain as ex
@@ -74,7 +74,7 @@ PANELS = {"timeline": ("Qué ha pasado", "log"), "evidence": ("Evidencia", "evid
           "memory": ("Aprendido en este repo", "memory")}
 PANEL_KEYS = {"e": "evidence", "d": "changes", "g": "agent", "m": "memory"}
 PANEL_KEYS_INV = {p: k for k, p in PANEL_KEYS.items()}
-MAIN_ACTIONS = (*AVAILABLE, "spec", "toggle_raw", "quit", "panel", "projects")
+MAIN_ACTIONS = (*AVAILABLE, "spec", "toggle_raw", "quit", "panel", "projects", "lessons")
 LEASE_TTL_S, LEASE_RENEW_S = 60, 20
 APPROVE_WIDTH = 92  # ancho útil del cuerpo de la confirmación (caja de 100 con borde y padding)
 GROUP_GLYPHS = ("⚠", "▶", "·", "✓")  # etiqueta de fila por grupo: GROUPS de watch_data
@@ -120,6 +120,7 @@ class WatchApp(App):
         Binding("m", "panel('memory')", "Aprendido"),
         Binding("h", "findings", "Hallazgos"),
         Binding("k", "context", "Ver paquete"),
+        Binding("l", "lessons", "Lecciones", show=False),  # en la ayuda y en la cabecera
         Binding("c", "cancel", "Cancelar"),
         Binding("x", "drop", "Descartar"),
         Binding("s", "spec", "Spec nueva"),
@@ -563,6 +564,10 @@ class WatchApp(App):
         self.push_screen(AskText("Umbra confirmará tus cambios, correrá los tests y seguirá "
                                  "desde Revisar.\n\nQué arreglaste (una línea):"), with_text)
 
+    def action_lessons(self) -> None:
+        """Panel Lecciones: propuestas primero; aprobar, descartar o retirar (spec 035)."""
+        self.push_screen(LessonsScreen(self.root))
+
     def action_context(self) -> None:
         """Abre en el editor el paquete de contexto que recibió el agente (solo lectura)."""
         n = self.selected
@@ -753,6 +758,10 @@ class WatchApp(App):
             f"{h.tasks} tareas", "  ·  ",
             (f"⚠ {h.attention} te necesita{'n' if h.attention != 1 else ''}", f"bold {warn}")
             if h.attention else ("nada pendiente de ti", "dim"))
+        if h.lessons:
+            text.append("  ·  ")
+            text.append(f"● {h.lessons} lecci{'ones' if h.lessons != 1 else 'ón'} por decidir",
+                        f"bold {warn}")
         if text.plain != self._header_text:
             self._header_text = text.plain
             self.query_one("#status", Static).update(text)

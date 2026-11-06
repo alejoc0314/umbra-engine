@@ -74,6 +74,7 @@ COMMANDS = [
     ("hacer", "lo que quieres · igual que escribirlo sin más"),
     ("nuevo", "empezar la conversación de cero"),
     ("gusto", "lo que umbra sabe de tu gusto en diseño"),
+    ("lecciones", "las lecciones por decidir, con sus botones"),
     ("actualizar", "instalar la última versión de umbra (el puente vuelve solo)"),
     ("ayuda", "esta lista"),
 ]
@@ -194,6 +195,8 @@ def act(ctx: service.Ctx, data: str, who: str) -> str:
         if kind == "dbno":
             service.db_discard(ctx, arg, ORIGIN)
             return f"Cambio {arg} descartado: la BD no se tocó."
+        if kind in LESSON_ACTIONS:  # el chat_id ya se verificó en handle()
+            return lesson_act(ctx, kind, arg, who)
         n = int(arg.split(":", 1)[0])
         if kind == "approve":
             r = service.approve(ctx, n, ORIGIN)
@@ -240,6 +243,70 @@ def act(ctx: service.Ctx, data: str, who: str) -> str:
     except (service.OpError, ValueError) as e:
         return f"No se pudo: {e}"
     return f"No entiendo «{data}»."
+
+
+# ---------- lecciones (spec 035) ----------
+LESSON_ACTIONS = {"lap": "Aprobar", "ldi": "Descartar", "lre": "Retirar", "lver": "Ver"}
+LESSON_BUTTONS = {"proposed": ("lap", "ldi", "lver"), "approved": ("lre", "lver"),
+                  "retired": ("lap", "lver"), "discarded": ("lver",)}
+LESSON_STATUS = {"proposed": "propuesta", "approved": "aprobada", "discarded": "descartada",
+                 "retired": "retirada"}
+
+
+def _channel(ctx: service.Ctx) -> str:
+    return f"telegram:{(ctx.config.get('notify', {}).get('telegram') or {}).get('chat_id')}"
+
+
+def _lesson_zone(item: dict) -> str:
+    return ", ".join(item["zone"]) or "todo el proyecto"
+
+
+def lesson_text(item: dict) -> str:
+    lines = [f"{item['id']} · {LESSON_STATUS[item['status']]}", item["text"],
+             f"Zona: {_lesson_zone(item)}"]
+    if item.get("conflicts"):
+        lines.append(f"En conflicto con {', '.join(item['conflicts'])}")
+    for o in item.get("origins_detail") or []:
+        lines.append(f"· #{o['task']} {o['stage'] or ''}: {o['detail']}"[:200])
+    if item.get("applied_in"):
+        lines.append("Se aplicó en " + ", ".join(f"#{a['task']}" for a in item["applied_in"]))
+    return "\n".join(lines)
+
+
+def lesson_buttons(item: dict, project: str) -> list[list[tuple[str, str]]]:
+    return [[(LESSON_ACTIONS[k], f"{k}:{item['number']}@{project}")
+             for k in LESSON_BUTTONS[item["status"]]]]
+
+
+def lesson_act(ctx: service.Ctx, kind: str, arg: str, who: str) -> str:
+    """Los botones de una lección. Solo llegan aquí desde el chat_id configurado."""
+    if kind == "lver":
+        return lesson_text(service.lesson_show(ctx, arg))
+    op = {"lap": service.lesson_approve, "ldi": service.lesson_discard,
+          "lre": service.lesson_retire}[kind]
+    item = op(ctx, arg, channel=_channel(ctx), who=who)
+    return f"{item['id']} {LESSON_STATUS[item['status']]}."
+
+
+def lessons_command(state: State, arg: str = "") -> str:
+    """`/lecciones`: cada propuesta en su mensaje con sus botones. `/leccion Ln`: el detalle."""
+    ctx = _ctx(state)
+    try:
+        if arg:
+            item = service.lesson_show(ctx, arg)
+            telegram.send(state.tg, lesson_text(item), lesson_buttons(item, state.current))
+            return ""
+        items = service.lesson_list(ctx, status="proposed")
+    except service.OpError as e:
+        return f"No se pudo: {e}"
+    finally:
+        ctx.conn.close()
+    if not items:
+        return "No hay lecciones por decidir."
+    send(state.tg, f"{len(items)} lecciones por decidir en {state.current}:")
+    for item in items:
+        telegram.send(state.tg, lesson_text(item), lesson_buttons(item, state.current))
+    return ""
 
 
 TEXT_REPLIES = {"agent_questions": "answer", "design_review": "dchg",  # código → acción
@@ -540,6 +607,8 @@ def command(state: State, text: str, who: str) -> str:
         from umbra.management import taste
         return taste.load()[-3500:] or ("Todavía no sé nada de tu gusto: se llena con lo que "
                                         "eliges, pides y apruebas en los diseños.")
+    if word in ("lecciones", "leccion", "lección"):
+        return lessons_command(state, arg if word != "lecciones" else "")
     if word == "tareas":
         ctx = _ctx(state)
         try:
@@ -847,8 +916,39 @@ def send(tg: dict, text: str) -> None:
         telegram.send(tg, text[i:i + CHUNK])
 
 
+def lesson_notices(state: State) -> None:
+    """Un único aviso agrupado con las propuestas de lecciones aún no avisadas de cada
+    proyecto (no uno por lección); `lessons.notified` recuerda hasta dónde se avisó."""
+    for name, root in state.roots.items():
+        try:
+            ctx = service.load(root)
+        except Exception:  # noqa: BLE001 — un proyecto roto no frena el puente
+            continue
+        try:
+            last = ctx.conn.execute("SELECT payload FROM event WHERE type = 'lessons.notified'"
+                                    " ORDER BY id DESC LIMIT 1").fetchone()
+            since = json.loads(last[0]).get("last_id", 0) if last else 0
+            rows = ctx.conn.execute("SELECT id, payload FROM event WHERE type ="
+                                    " 'lessons.proposed' AND id > ? ORDER BY id",
+                                    (since,)).fetchall()
+            if not rows:
+                continue
+            n = sum(json.loads(r[1]).get("proposed", 0) for r in rows)
+            add_event(ctx.conn, None, "lessons.notified", ORIGIN, last_id=rows[-1][0],
+                      proposed=n)
+            if n:
+                word = "lección nueva" if n == 1 else "lecciones nuevas"
+                send(state.tg, f"umbra · {name} · Hay {n} {word} por decidir. /lecciones las "
+                               "muestra con sus botones.")
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            ctx.conn.close()
+
+
 def run_once(state: State, timeout: float = telegram.POLL_TIMEOUT_S) -> int:
     """Una ronda de long polling; devuelve cuántas actualizaciones atendió."""
+    lesson_notices(state)
     seen = 0
     for update in telegram.updates(state.tg, state.offset, timeout):
         state.offset = max(state.offset, int(update.get("update_id", 0)) + 1)

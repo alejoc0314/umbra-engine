@@ -21,11 +21,12 @@ from umbra.actions import git
 from umbra.blocks.lease import _ts
 from umbra.cli import agent_story, theme
 from umbra.management import memory
-from umbra.unified import clock
+from umbra.unified import clock, project
 from umbra.unified import explain as ex
 from umbra.unified.store import _unpriced, data_version, open_store
 
 ATTENTION = {"BLOCKED", "FAILED", "WAITING_APPROVAL"}
+LESSONS_EVERY = 10.0  # segundos entre consultas de lecciones por decidir
 WORKING = {"RUNNING", "QUEUED", "PAUSED"}
 GROUPS = ("Te necesitan", "En marcha", "Por hacer", "Terminadas")
 PATCH_CHARS = 60_000
@@ -71,6 +72,7 @@ class HeaderInfo:
     spend: str
     attention: int
     tasks: int
+    lessons: int = 0  # lecciones por decidir (spec 035)
 
 
 @dataclass
@@ -130,6 +132,7 @@ class Loader:
         self.extras: dict[tuple, object] = {}  # (tipo, run_id, head) → calculado
         self.agent_path: Path | None = None
         self.agent_offset = 0
+        self.lessons_at, self.lessons_pending = 0.0, 0  # lessons.db vive fuera del proyecto
         self.width = EVIDENCE_WIDTH  # ancho al que se envuelve el informe (lo fija la pantalla)
 
     def close(self) -> None:
@@ -209,7 +212,20 @@ class Loader:
             total += Decimal(u["cost"] or 0)
             tokens += _unpriced(u)
         return HeaderInfo(alive, queued, ex.spend_text(total, tokens),
-                          sum(t.group == 0 for t in tasks), len(tasks))
+                          sum(t.group == 0 for t in tasks), len(tasks), self._lessons())
+
+    def _lessons(self) -> int:
+        """Las lecciones por decidir; se consultan como mucho cada LESSONS_EVERY segundos."""
+        import time
+        if time.monotonic() - self.lessons_at >= LESSONS_EVERY:
+            self.lessons_at = time.monotonic()
+            try:
+                ctx = service.Ctx(self.root, self.udir, self.conn,
+                                  project.load_project(self.root))
+                self.lessons_pending = service.lesson_pending(ctx)
+            except Exception:  # noqa: BLE001 — sin lessons.db, la cabecera no lo menciona
+                self.lessons_pending = 0
+        return self.lessons_pending
 
     def _tasks(self) -> list[TaskRow]:
         conn = self.conn

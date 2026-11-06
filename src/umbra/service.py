@@ -1555,3 +1555,88 @@ def preflight(ctx: Ctx, confirm=None) -> None:
     proc = subprocess.run([specify, *cmd[1:]], cwd=ctx.root, capture_output=True, text=True)
     if proc.returncode != 0 or not (ctx.root / ".specify").is_dir():
         raise OpError(f"`specify init` falló: {(proc.stderr or proc.stdout).strip()}")
+
+
+# ---------- lecciones (spec 035) ----------
+# Decidir (aprobar, descartar, retirar, resolver) es solo de la persona: CLI, watch o Telegram
+# con el chat_id verificado. El chat solo consulta (list, show).
+def _lessons(ctx: Ctx, fn):
+    from umbra.management import lessons
+    roots = sorted(ctx.members.values()) or [ctx.root]
+    try:
+        db = lessons.open_db()
+    except (sqlite3.Error, OSError) as e:
+        raise OpError(f"no se pudo abrir lessons.db ({e}); las tareas siguen sin "
+                      "lecciones") from e
+    try:
+        return fn(lessons, db, lessons.resolve(db, lessons.project_key(roots)))
+    except lessons.LessonError as e:
+        raise OpError(str(e)) from e
+    finally:
+        db.close()
+
+
+def _repo_files(ctx: Ctx) -> list[str]:
+    """Los archivos versionados (con el repo delante en un espacio), para marcar obsoletas."""
+    out: list[str] = []
+    for name, root in (ctx.members.items() or [("", ctx.root)]):
+        try:
+            listed = git.run(root, "ls-files").splitlines()
+        except Exception:  # noqa: BLE001 — sin lista, nada se marca como obsoleto
+            continue
+        out += [f"{name}/{f}" if name else f for f in listed]
+    return out
+
+
+def lesson_pending(ctx: Ctx) -> int:
+    """Cuántas lecciones esperan la decisión de la persona (la cabecera de watch)."""
+    return _lessons(ctx, lambda m, db, key: db.execute(
+        "SELECT COUNT(*) FROM lesson WHERE project_key = ? AND status = 'proposed'",
+        (key,)).fetchone()[0])
+
+
+def lesson_list(ctx: Ctx, status: str | None = None, all_: bool = False) -> list[dict]:
+    files = _repo_files(ctx)
+    return _lessons(ctx, lambda m, db, key: m.list_(db, key, status, all_, files))
+
+
+def lesson_show(ctx: Ctx, ref) -> dict:
+    files = _repo_files(ctx)
+    return _lessons(ctx, lambda m, db, key: m.show(db, key, m.parse_number(ref), ctx.conn,
+                                                   files))
+
+
+def lesson_approve(ctx: Ctx, ref, text: str | None = None, zone: list[str] | None = None,
+                   project_wide: bool = False, channel: str = "cli",
+                   who: str | None = None) -> dict:
+    return _lessons(ctx, lambda m, db, key: m.approve(
+        db, key, m.parse_number(ref), text, zone or None, project_wide,
+        actor=who or actor(), channel=channel))
+
+
+def lesson_discard(ctx: Ctx, ref, reason: str = "", channel: str = "cli",
+                   who: str | None = None) -> dict:
+    return _lessons(ctx, lambda m, db, key: m.discard(
+        db, key, m.parse_number(ref), reason, actor=who or actor(), channel=channel))
+
+
+def lesson_retire(ctx: Ctx, ref, reason: str = "", channel: str = "cli",
+                  who: str | None = None) -> dict:
+    return _lessons(ctx, lambda m, db, key: m.retire(
+        db, key, m.parse_number(ref), reason, actor=who or actor(), channel=channel))
+
+
+def lesson_resolve(ctx: Ctx, a, b, channel: str = "cli", who: str | None = None) -> list[dict]:
+    return _lessons(ctx, lambda m, db, key: m.resolve_conflict(
+        db, key, m.parse_number(a), m.parse_number(b), actor=who or actor(), channel=channel))
+
+
+def lesson_harvest(ctx: Ctx, origin: str = "cli") -> dict:
+    """Cosecha ya los tropiezos pendientes; cada ejecución se cosecha una sola vez
+    (operation_key `lesson:<run>:<evento>`), así que repetirlo no duplica nada."""
+    from umbra.management import lessons
+    try:
+        created = lessons.harvest(engine(ctx, origin))
+    except (sqlite3.Error, OSError) as e:
+        raise OpError(f"no se pudo cosechar: {e}") from e
+    return {"proposed": created}
