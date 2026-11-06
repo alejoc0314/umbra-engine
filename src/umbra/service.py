@@ -956,6 +956,25 @@ def open_workspace(ctx: Ctx, number: int, origin: str = "cli") -> dict:
     return {"number": number, "editor": cmd[0], "worktree": wt.as_posix()}
 
 
+def open_context(ctx: Ctx, number: int) -> dict:
+    """Abre en el editor de la persona el paquete de contexto que recibió el agente (spec 035).
+    Solo lectura: no cambia el estado de la tarea."""
+    from umbra.unified.explain import context_of
+    run_row = latest_run(ctx, number)
+    info = context_of(ctx.conn, run_row["id"])
+    path = Path(info["path"]) if info and info.get("path") else None
+    if path is None or not path.is_file():
+        raise OpError(f"la tarea {number} no pasó por Explorar: no hay paquete de contexto", 2)
+    cmd = editor_command(ctx.config)
+    try:
+        subprocess.Popen([process.resolve(cmd[0]), *cmd[1:], str(path)],
+                         **process.background_kwargs())
+    except OSError as e:
+        raise OpError(f"no se pudo abrir el editor «{cmd[0]}»: {e}. Configura [editor] "
+                      "command en .umbra/project.toml") from e
+    return {"number": number, "editor": cmd[0], "path": path.as_posix()}
+
+
 def resume_human(ctx: Ctx, number: int, message: str, foreground: bool = False,
                  origin: str = "cli") -> dict:
     """Confirma el arreglo de la persona como un intento más (con los tests como evidencia) y

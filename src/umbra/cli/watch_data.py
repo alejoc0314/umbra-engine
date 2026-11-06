@@ -156,6 +156,8 @@ class Loader:
             if task:
                 snap.explanation_key, snap.explanation = self._explain(task)
                 snap.decision = self._spec_decision(task)
+                ctx = snap.explanation.context  # «Contexto que recibió»: tecla k lo abre
+                snap.decision["context"] = bool(ctx and ctx.get("path"))
         snap.specs = [ex.spec_line(p) for p in
                       service.spec_progress(service.Ctx(self.root, self.udir, conn, {}))]
         if run:

@@ -6,6 +6,7 @@ from rich.padding import Padding
 from rich.text import Text
 
 from umbra.cli import context
+from umbra.unified import explain as ex
 from umbra.unified.explain import Explanation, explain_number
 from umbra.unified.output import emit
 
@@ -54,7 +55,34 @@ def renderable(exp: Explanation, compact: bool = False, technical: bool = False,
                 parts[-1] = Padding(Text.assemble(f"{i}. {a.what}  ", (a.command, "cyan")),
                                     (0, 0, 0, 2))
     parts += _agent_notes(exp.about, compact)
+    parts += _context(exp.context, compact)
     return Group(*parts)
+
+
+def _context(ctx: dict | None, compact: bool) -> list:
+    """El paquete que reunió Explorar: qué recibió el agente, cuánto ocupó y qué quedó fuera.
+    En watch (compacto) recuerda la tecla para abrirlo; en la CLI, la ruta del archivo."""
+    if not ctx:
+        return []
+    parts = _section("Contexto que recibió")
+    if ctx["status"] == "failed":
+        parts.append(_indent(Text(f"Explorar no pudo reunirlo: {ctx.get('reason')}. La tarea "
+                                  "siguió sin él.", style="yellow")))
+    else:
+        parts.append(_indent(f"{ex.context_counts(ctx['counts'])} · "
+                             f"{ex.context_size(ctx)} caracteres"))
+        if ctx["lessons"]:
+            parts.append(_indent("Lecciones aplicadas: " + "; ".join(ctx["lessons"])))
+        if ctx["omitted"]:
+            parts.append(_indent(Text("Quedó fuera por el tope: "
+                                      + ex.omitted_text(ctx["omitted"]), style="dim")))
+        if ctx.get("fingerprint"):
+            parts.append(_indent(Text(f"Base explorada: {ctx['fingerprint'][:10]}",
+                                      style="dim")))
+    if ctx.get("path"):
+        parts.append(_indent(Text("k: ver paquete", style="cyan") if compact
+                             else Text(ctx["path"], style="cyan")))
+    return parts
 
 
 def _section(title: str) -> list:
