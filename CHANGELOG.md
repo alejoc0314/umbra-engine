@@ -7,6 +7,9 @@ versión publicada.
 
 ## Sin publicar
 
+- Abrir a la vez un proyecto nuevo desde dos sitios (el puente y una tarea, por ejemplo) ya no
+  falla con «database is locked» ni «table already exists».
+
 ## v0.26.2 — 2026-11-05
 
 - `/replicar` y `umbra design replicar` funcionan en un espacio de trabajo: levantan el back y
