@@ -146,7 +146,7 @@ def import_cmd(path: Path = typer.Argument(..., help="Archivo creado con `umbra 
     out = _run(as_json, lambda s, ctx: s.lesson_import(ctx, data))
     emit(out, as_json, lambda c: c.print(
         f"{out['created']} nuevas, {out['merged']} ya existían, "
-        f"{out['origins_added']} orígenes añadidos.", markup=False))
+        f"{out['origins_added']} orígenes añadidos.", markup=False, highlight=False))
 
 
 @app.command("harvest")
