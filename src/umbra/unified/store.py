@@ -1,6 +1,7 @@
 """Almacén SQLite del proyecto (.umbra/umbra.db)."""
 
 import sqlite3
+import time
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -150,7 +151,15 @@ def connect(path: Path, same_thread: bool = True) -> sqlite3.Connection:
     conn = sqlite3.connect(path, timeout=30, isolation_level=None,
                            check_same_thread=same_thread)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
+    for attempt in range(50):  # ponytail: pasar a WAL no espera al busy timeout; ~5 s y se rinde
+        try:
+            if conn.execute("PRAGMA journal_mode").fetchone()[0] != "wal":
+                conn.execute("PRAGMA journal_mode=WAL")
+            break
+        except sqlite3.OperationalError:
+            if attempt == 49:
+                raise
+            time.sleep(0.1)
     conn.execute("PRAGMA foreign_keys=ON")
     migrate(conn)
     return conn
@@ -166,9 +175,20 @@ def data_version(conn: sqlite3.Connection) -> int:
 
 
 def migrate(conn: sqlite3.Connection) -> int:
+    """Aplica las migraciones pendientes. Si otro proceso abre la misma base a la vez (el puente
+    y un worker sobre un proyecto nuevo), una de las dos falla al crear lo que la otra ya creó:
+    se deshace, se relee la versión y se sigue desde ahí."""
     version = conn.execute("PRAGMA user_version").fetchone()[0]
-    for target, script in enumerate(MIGRATIONS[version:], start=version + 1):
-        conn.executescript(f"BEGIN;\n{script}\nPRAGMA user_version = {target};\nCOMMIT;")
+    while version < len(MIGRATIONS):
+        try:
+            conn.executescript(f"BEGIN IMMEDIATE;\n{MIGRATIONS[version]}\n"
+                               f"PRAGMA user_version = {version + 1};\nCOMMIT;")
+        except sqlite3.OperationalError:
+            if conn.in_transaction:
+                conn.execute("ROLLBACK")
+            if conn.execute("PRAGMA user_version").fetchone()[0] <= version:
+                raise  # nadie más la aplicó: es un error de verdad
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
     return len(MIGRATIONS)
 
 
