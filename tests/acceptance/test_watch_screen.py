@@ -155,6 +155,46 @@ def test_narrow_terminal_stacks_the_panels(env):
     drive(env, scenario, size=(80, 24))
 
 
+def test_review_detail_shows_the_context_and_opens_the_package(env, monkeypatch):
+    from tests.acceptance.test_e2 import run_feature
+    from umbra import service
+    env.mode("noop", "ok", "noop")
+    env.umbra("task", "add", "Sumar correctamente", "-d", "add de calc.py debe sumar",
+              "-a", "add(2, 3) == 5")
+    assert run_feature(env) == "WAITING_APPROVAL"
+    opened = []
+    real_popen = service.subprocess.Popen
+
+    def fake_popen(args, **kw):  # solo el editor es falso: git sigue siendo real
+        if args and args[0] == "mi-editor":
+            opened.append(args)
+            return None
+        return real_popen(args, **kw)
+
+    monkeypatch.setattr(service, "editor_command", lambda config: ["mi-editor"])
+    monkeypatch.setattr(service.subprocess, "Popen", fake_popen)
+
+    async def scenario(app, pilot):
+        import io
+
+        from rich.console import Console
+        console = Console(file=io.StringIO(), width=120, color_system=None)
+        console.print(app.query_one("#situation-body").content)
+        text = console.file.getvalue()
+        assert "Contexto que recibió" in text and "ver paquete" in text
+        assert app.check_action("context", ()) is True
+        await pilot.press("k")
+        for _ in range(30):
+            await pilot.pause(0.1)
+            if opened:
+                break
+        assert opened and opened[0][-1].endswith(".md")
+
+    drive(env, scenario, size=(160, 60))
+    result = service.open_context(service.load(env.root), 1)
+    assert result["path"].endswith(".md") and result["editor"] == "mi-editor"
+
+
 def test_agent_story_reads_claude_and_codex():
     claude = "\n".join(json.dumps(e) for e in [
         {"type": "assistant", "message": {"content": [

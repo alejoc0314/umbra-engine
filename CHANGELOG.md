@@ -10,6 +10,8 @@ versión publicada.
 - **Cada tarea arranca con el contexto justo**: la nueva etapa Explorar de la rutina `feature` reúne, sin modelo, los
   archivos, tests, historia y tareas anteriores de la zona que toca la tarea, con tamaño acotado
   (`[context] max_chars`), y los agentes lo reciben. Si falla, la tarea sigue.
+- **El contexto se ve como evidencia**: `umbra explain` y `umbra watch` muestran el contexto que
+  recibió el agente (archivos, tests, lecciones, tamaño y lo que quedó fuera); en `watch`, `k` lo abre.
 
 ## v0.27.0 — 2026-11-05
 
