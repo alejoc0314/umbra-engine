@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.26.0 — 2026-11-05
+
 - **Espacios de trabajo** para proyectos con front y back en repos separados: `umbra init` en la
   carpeta padre los une en una sola cola, un `watch` y un Telegram. Cada historia dice su repo
   (`**Repo**: api`) y la spec se aprueba de una vez, con un PR por repo integrado en orden.
