@@ -79,3 +79,28 @@ def test_findings_escalate_the_builder_when_there_is_no_arbiter(env):
     event = json.loads(env.conn.execute("SELECT payload FROM event WHERE type = 'stage.escalated'"
                                         ).fetchone()[0])
     assert event["reason"] == "findings"
+
+
+
+def test_a_model_out_of_monthly_spend_falls_back_to_the_backup_model(env):
+    """Fable sin gasto del mes: `--fallback-model` no lo cubre; umbra repite con Opus."""
+    env.monkeypatch.setenv("FAKE_CLAUDE_LIMIT_MODEL", "claude-fable-5-1")
+    env.mode("ok")
+    env.umbra("task", "add", "Sumar", "-a", "add(2, 3) == 5")
+    env.umbra("run", "1", "--foreground")
+    assert env.run()["status"] == "WAITING_APPROVAL", env.umbra("explain", "1").output
+    models = [c["args"][c["args"].index("--model") + 1] for c in env.claude_calls()]
+    assert models == ["claude-fable-5-1", "claude-opus-5-5"]  # un intento, con respaldo
+    assert env.conn.execute("SELECT COUNT(*) FROM attempt WHERE stage = 'build'"
+                            ).fetchone()[0] == 1
+
+
+def test_when_the_backup_is_also_out_the_task_says_both(env):
+    env.monkeypatch.setenv("FAKE_CLAUDE_LIMIT_MODEL", "claude-fable-5-1,claude-opus-5-5")
+    env.umbra("task", "add", "Sumar", "-a", "add(2, 3) == 5")
+    env.umbra("run", "1", "--foreground")
+    assert env.run()["status"] == "FAILED"
+    reason = json.loads(env.conn.execute("SELECT payload FROM event WHERE type = 'run.failed'"
+                                         ).fetchone()[0])["reason"]
+    assert "claude-fable-5-1: You've hit your monthly spend limit" in reason
+    assert "claude-opus-5-5: You've hit your monthly spend limit" in reason
