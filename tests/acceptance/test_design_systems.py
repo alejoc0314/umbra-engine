@@ -103,6 +103,7 @@ def test_replicate_the_current_design(env):
     assert "1 vistas replicadas" in out and "Réplica guardada" in out
     files = git(env.root, "log", "-1", "--name-only", "--format=").stdout
     assert "design/actual/inicio.png" in files and "design/sistema.md" in files
+    assert not (env.root / ".playwright-mcp").exists()  # lo del navegador no es trabajo
     call = env.claude_calls()[0]
     assert flag(call["args"], "--model") == "sonnet" and "mcp__playwright" in call["args"][
         call["args"].index("--allowedTools") + 1]
