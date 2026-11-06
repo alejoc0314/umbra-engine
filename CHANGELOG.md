@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.26.2 — 2026-11-05
+
 - `/replicar` y `umbra design replicar` funcionan en un espacio de trabajo: levantan el back y
   luego el front (con `UMBRA_URL_<REPO>`) y guardan la réplica en el repo de la app.
 
