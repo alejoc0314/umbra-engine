@@ -116,3 +116,38 @@ def test_harvest_twice_does_not_duplicate(env):
     assert lesson_json(env, "harvest")[1] == {"proposed": 0}
     assert lesson_json(env, "harvest")[1] == {"proposed": 0}
     assert len(lesson_json(env, "list", "--all")[1]) == 1
+
+
+def test_watch_header_does_not_wait_for_lessons(env, monkeypatch):
+    """Contar las lecciones (git y lessons.db) no frena la primera carga de watch: se cuenta
+    aparte y la cabecera se actualiza en cuanto llega el número."""
+    import threading
+    import time
+
+    from umbra import service
+    from umbra.cli.watch_data import Loader
+
+    env.conn.close()
+    release = threading.Event()
+
+    def slow(ctx):
+        release.wait(5)
+        return 3
+
+    monkeypatch.setattr(service, "lesson_pending", slow)
+    loader = Loader(env.root / ".umbra")
+    try:
+        start = time.monotonic()
+        snap = loader.load(None, False, None, 0)
+        assert time.monotonic() - start < 2
+        assert snap.header.lessons == 0
+        release.set()
+        for _ in range(100):
+            time.sleep(0.05)
+            snap = loader.load(None, False, None, 0) or snap
+            if snap.header.lessons == 3:
+                break
+        assert snap.header.lessons == 3
+    finally:
+        release.set()
+        loader.close()

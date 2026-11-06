@@ -133,6 +133,9 @@ class Loader:
         self.agent_path: Path | None = None
         self.agent_offset = 0
         self.lessons_at, self.lessons_pending = 0.0, 0  # lessons.db vive fuera del proyecto
+        self.lessons_busy = self.lessons_changed = False  # el conteo corre en su propio hilo
+        self.lessons_thread = None
+        self._lessons()  # arranca ya: el primer conteo corre mientras se monta la pantalla
         self.width = EVIDENCE_WIDTH  # ancho al que se envuelve el informe (lo fija la pantalla)
 
     def close(self) -> None:
@@ -142,11 +145,14 @@ class Loader:
              force: bool = False, want: str = "situation") -> Snapshot | None:
         """None = nada cambió desde la última instantánea."""
         conn = self.conn
+        if self.version is None:
+            self.wait_lessons(0.25)  # acotado: la primera carga nunca espera más que esto
         version = data_version(conn)
         if selected is None:
             selected = self._default_selection()
-        unchanged = version == self.version and self.seen == (selected, raw, want)
-        self.version, self.seen = version, (selected, raw, want)
+        unchanged = version == self.version and self.seen == (selected, raw, want) \
+            and not self.lessons_changed
+        self.version, self.seen, self.lessons_changed = version, (selected, raw, want), False
         if unchanged and not force:
             return self._agent_only(selected) if want == "agent" else None
         run = self._run(selected) if selected is not None else None
@@ -215,17 +221,30 @@ class Loader:
                           sum(t.group == 0 for t in tasks), len(tasks), self._lessons())
 
     def _lessons(self) -> int:
-        """Las lecciones por decidir; se consultan como mucho cada LESSONS_EVERY segundos."""
+        """Las lecciones por decidir; se cuentan en un hilo aparte (git y lessons.db no frenan
+        la pantalla) como mucho cada LESSONS_EVERY segundos. Devuelve el último número."""
+        import threading
         import time
-        if time.monotonic() - self.lessons_at >= LESSONS_EVERY:
-            self.lessons_at = time.monotonic()
-            try:
-                ctx = service.Ctx(self.root, self.udir, self.conn,
-                                  project.load_project(self.root))
-                self.lessons_pending = service.lesson_pending(ctx)
-            except Exception:  # noqa: BLE001 — sin lessons.db, la cabecera no lo menciona
-                self.lessons_pending = 0
+        if not self.lessons_busy and time.monotonic() - self.lessons_at >= LESSONS_EVERY:
+            self.lessons_at, self.lessons_busy = time.monotonic(), True
+            self.lessons_thread = threading.Thread(target=self._count_lessons, daemon=True)
+            self.lessons_thread.start()
         return self.lessons_pending
+
+    def wait_lessons(self, seconds: float) -> None:
+        """Al abrir, espera un poco el primer conteo para que la cabecera ya lo traiga."""
+        if self.lessons_thread is not None:
+            self.lessons_thread.join(seconds)
+
+    def _count_lessons(self) -> None:
+        try:
+            ctx = service.Ctx(self.root, self.udir, None, project.load_project(self.root))
+            count = service.lesson_pending(ctx)
+        except Exception:  # noqa: BLE001 — sin lessons.db, la cabecera no lo menciona
+            count = 0
+        if count != self.lessons_pending:
+            self.lessons_pending, self.lessons_changed = count, True
+        self.lessons_busy = False
 
     def _tasks(self) -> list[TaskRow]:
         conn = self.conn
