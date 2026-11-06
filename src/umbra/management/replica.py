@@ -54,8 +54,13 @@ def _start(root: Path, udir: Path, config: dict, app: Path) -> list[dict]:
 
 
 def replicate(conn, root: Path, udir: Path, config: dict, origin: str = "cli") -> dict:
-    """Levanta la app, corre el replicador y devuelve {summary, images, root}. Lo que toque
-    fuera de `design/` se restaura. En un espacio, trabaja en el repo de la app."""
+    """Levanta la app, corre el replicador y devuelve {summary, images, root}.
+
+    El replicador prepara la app por su cuenta (usuarios de prueba temporales, datos de ejemplo
+    para lo externo que falle) y solo escribe en `design/` del repo de la app. Todo o nada: si
+    falta alguna vista, cambió código o falló, la réplica se descarta y se dice por qué. Lo que
+    deje suelto fuera de `design/` (registros, temporales) se limpia sin más. En un espacio
+    trabaja desde la carpeta padre, viendo todos sus repos."""
     home = root
     root, app_config = app_repo(home, config)
     if not commands.background(app_config, "dev"):
@@ -63,7 +68,11 @@ def replicate(conn, root: Path, udir: Path, config: dict, origin: str = "cli") -
         raise ReplicaError("hace falta el comando `dev` (con `background = true` y `url`) en "
                            f"{where}.umbra/project.toml para ver la app")
     design = design_systems.resolved(app_config)
-    feedback = []
+    design_dir = f"{root.name}/{FOLDER}" if root != home else FOLDER  # visto desde el agente
+    repos = proj.members(home, config) or {root.name: root}
+    feedback = [f"# Carpeta de diseño\n\n`{design_dir}/`: es lo único que puedes escribir."
+                + (f" El proyecto es un espacio con varios repos: {', '.join(repos)}; la app "
+                   f"(el front) es {root.name}." if root != home else "")]
     inventory = root / INVENTORY if (root / INVENTORY).is_file() else home / INVENTORY
     feedback.append("# Inventario de vistas\n\n" + (
         inventory.read_text(encoding="utf-8", errors="replace") if inventory.is_file() else
@@ -78,29 +87,60 @@ def replicate(conn, root: Path, udir: Path, config: dict, origin: str = "cli") -
         if path.is_file():
             feedback.append(path.read_text(encoding="utf-8", errors="replace")[:ob.NOTE_CHARS])
     devs = _start(home, udir, config, root)
-    before = ob._dirty(root)
+    before = {path: ob._dirty(path) for path in repos.values()}
     try:
         result, invocation = ob.agent(
-            root, udir, "replicator", "Replicar el diseño actual",
-            "Recorre la app y replica cada vista del inventario.", feedback,
-            app_url=devs[-1]["url"], mcp=design.get("mcp") or {})
+            home, udir, "replicator", "Replicar el diseño actual",
+            "Prepara la app y replica todas las vistas del inventario.", feedback,
+            app_url=devs[-1]["url"], mcp=design.get("mcp") or {},
+            allowed_paths=[f"{design_dir}/**"])
     finally:
         for dev in reversed(devs):
             commands.stop_background(dev)
-    others = sorted(p for p in ob._dirty(root) - before if not p.startswith(f"{FOLDER}/"))
-    if others:
-        for p in others:
-            if git.ok(root, "ls-files", "--error-unmatch", p):
-                git.ok(root, "checkout", "--", p)
-            else:
-                (root / p).unlink(missing_ok=True)
-        raise ReplicaError(f"el replicador tocó archivos que no debía: {', '.join(others)}")
-    if not result.ok:
-        raise ReplicaError(result.error or "el replicador falló")
-    ob.record_usage(conn, result, invocation)
-    images = [p for p in result.output.images if (root / p).is_file()]
+    if result.ok or result.cost:
+        ob.record_usage(conn, result, invocation)
+    changed, loose = _tidy(repos, before, root)
+    if loose:
+        add_event(conn, None, "design.replica_tidied", origin, files=loose)
+    reason = None
+    if changed:
+        reason = f"el replicador cambió código, que ya se restauró: {', '.join(changed)}"
+    elif not result.ok:
+        reason = result.error or "el replicador falló"
+    else:
+        prefix = f"{root.name}/" if root != home else ""
+        images = [p.removeprefix(prefix) for p in result.output.images]
+        images = [p for p in images if (root / p).is_file()]
+        if result.output.status == "blocked" or not images:
+            missing = "; ".join(result.output.questions) or "no dejó capturas"
+            reason = f"faltaron vistas: {missing}"
+    if reason:  # todo o nada: no queda una réplica a medias
+        discard(conn, root, origin)
+        add_event(conn, None, "design.replica_failed", origin, reason=reason)
+        raise ReplicaError(f"{reason}. La réplica se descartó entera"
+                           + (f". Lo que dijo: {result.output.summary}"
+                              if result.ok and result.output.summary else ""))
     add_event(conn, None, "design.replicated", origin, views=len(images))
     return {"summary": result.output.summary, "images": images, "root": root}
+
+
+def _tidy(repos: dict[str, Path], before: dict[Path, set[str]],
+          app: Path) -> tuple[list[str], list[str]]:
+    """Fuera de `design/` del repo de la app: lo versionado que cambió se restaura (y cuenta
+    como fallo); lo nuevo sin versionar (registros, temporales de un seed) se borra sin más."""
+    changed, loose = [], []
+    for name, path in repos.items():
+        shown = "" if len(repos) == 1 else f"{name}/"
+        for f in sorted(ob._dirty(path) - before[path]):
+            if path == app and f.startswith(f"{FOLDER}/"):
+                continue
+            if git.ok(path, "ls-files", "--error-unmatch", f):
+                git.ok(path, "checkout", "--", f)
+                changed.append(shown + f)
+            else:
+                (path / f).unlink(missing_ok=True)
+                loose.append(shown + f)
+    return changed, loose
 
 
 def pending(root: Path) -> list[str]:
@@ -125,5 +165,11 @@ def discard(conn, root: Path, origin: str = "cli") -> None:
             git.ok(root, "checkout", "--", p)
         else:
             (root / p).unlink(missing_ok=True)
+    folder = root / FOLDER
+    for d in sorted((d for d in folder.rglob("*") if d.is_dir()), reverse=True):
+        if not any(d.iterdir()):  # las carpetas que quedaron vacías, de la más honda arriba
+            d.rmdir()
+    if folder.is_dir() and not any(folder.iterdir()):
+        folder.rmdir()
     add_event(conn, None, "design.replica_discarded", origin)
 

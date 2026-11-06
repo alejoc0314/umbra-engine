@@ -195,14 +195,18 @@ def baseline(conn, root: Path, udir: Path, config: dict) -> str:
 # ---------- agentes ----------
 def agent(root: Path, udir: Path, profile_name: str, title: str, description: str,
           feedback: list[str], output_model: type[BaseModel] | None = None,
-          app_url: str | None = None, mcp: dict | None = None):
+          app_url: str | None = None, mcp: dict | None = None,
+          allowed_paths: list[str] | None = None):
     """Un agente fuera de una tarea (como el cartógrafo). Devuelve (resultado, invocación).
-    `app_url` le da la app levantada (con la acción `browse`); `mcp`, servidores extra."""
+    `app_url` le da la app levantada (con la acción `browse`); `mcp`, servidores extra;
+    `allowed_paths`, otras rutas editables que las del perfil (vistas desde `root`)."""
     from umbra.adapters import get_adapter
     from umbra.adapters.base import AgentRun
     from umbra.contracts.envelope import Envelope, StageOutput, TaskInfo
     from umbra.contracts.profile import McpServer
     profile = cfg.load_profile(udir, profile_name)
+    if allowed_paths is not None:
+        profile.allowed_paths = allowed_paths
     for name, server in (mcp or {}).items():
         profile.mcp[name] = McpServer(**server)
     invocation = new_id()
