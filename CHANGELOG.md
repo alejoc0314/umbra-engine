@@ -20,6 +20,8 @@ versión publicada.
   llegan a las tareas nuevas de su zona; el chat solo puede consultarlas.
 - **`umbra watch` ya no se cae cuando dos refrescos coinciden**: con la máquina cargada, un refresco
   lento y el siguiente leían a la vez la misma conexión y la pantalla podía cerrarse con un error.
+- **Tus lecciones son tuyas y viajan contigo**: `umbra lesson export` e `import` llevan tus lecciones
+  a otra máquina con su estado, origen y fechas; las de un repo nuevo se conservan tras su primer commit.
 
 ## v0.27.0 — 2026-11-05
 

@@ -1569,7 +1569,7 @@ def _lessons(ctx: Ctx, fn):
         raise OpError(f"no se pudo abrir lessons.db ({e}); las tareas siguen sin "
                       "lecciones") from e
     try:
-        return fn(lessons, db, lessons.resolve(db, lessons.project_key(roots)))
+        return fn(lessons, db, lessons.resolve(db, lessons.migrate(db, roots)))
     except lessons.LessonError as e:
         raise OpError(str(e)) from e
     finally:
@@ -1632,6 +1632,16 @@ def lesson_retire(ctx: Ctx, ref, reason: str = "", channel: str = "cli",
 def lesson_resolve(ctx: Ctx, a, b, channel: str = "cli", who: str | None = None) -> list[dict]:
     return _lessons(ctx, lambda m, db, key: m.resolve_conflict(
         db, key, m.parse_number(a), m.parse_number(b), actor=who or actor(), channel=channel))
+
+
+def lesson_export(ctx: Ctx) -> dict:
+    """Las lecciones del proyecto con su estado, orígenes, historial y fechas (portables)."""
+    return _lessons(ctx, lambda m, db, key: m.export(db, key, ctx.root.name))
+
+
+def lesson_import(ctx: Ctx, data: dict) -> dict:
+    """Trae lecciones exportadas; importar dos veces no duplica nada."""
+    return _lessons(ctx, lambda m, db, key: m.import_(db, key, data, ctx.root.name))
 
 
 def lesson_harvest(ctx: Ctx, origin: str = "cli") -> dict:
