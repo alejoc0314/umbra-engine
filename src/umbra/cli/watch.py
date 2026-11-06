@@ -58,6 +58,7 @@ AVAILABLE = {
     "open": {"blocked", "failed", "waiting_approval"},
     "approve_spec": WITH_RUN | {"draft", "ready", "waiting_deps", "dropped"},
     "night": WITH_RUN | {"draft", "ready", "waiting_deps", "dropped"},
+    "context": WITH_RUN,
 }
 LABELS = {"accept": "Aceptar / autorizar", "drop": "Descartar",
           "run": "Ejecutar, reintentar o responder", "new": "Empezar de cero",
@@ -65,7 +66,8 @@ LABELS = {"accept": "Aceptar / autorizar", "drop": "Descartar",
           "findings": "Decidir sobre hallazgos", "approve": "Aprobar e integrar",
           "approve_all": "Integrar todas las que esperan", "reject": "Rechazar",
           "open": "Abrir en tu editor / retomar con tu arreglo",
-          "approve_spec": "Integrar la spec completa", "night": "Modo noche: aceptar y encolar"}
+          "approve_spec": "Integrar la spec completa", "night": "Modo noche: aceptar y encolar",
+          "context": "Ver paquete de contexto"}
 # panel derecho: qué muestra y con qué tecla se pide (la misma tecla vuelve a «Qué ha pasado»)
 PANELS = {"timeline": ("Qué ha pasado", "log"), "evidence": ("Evidencia", "evidence"),
           "changes": ("Cambios", "changes"), "agent": ("Agente", "agent"),
@@ -117,6 +119,7 @@ class WatchApp(App):
         Binding("g", "panel('agent')", "Agente"),
         Binding("m", "panel('memory')", "Aprendido"),
         Binding("h", "findings", "Hallazgos"),
+        Binding("k", "context", "Ver paquete"),
         Binding("c", "cancel", "Cancelar"),
         Binding("x", "drop", "Descartar"),
         Binding("s", "spec", "Spec nueva"),
@@ -272,6 +275,8 @@ class WatchApp(App):
                 return d.get("waiting", 0) >= 2
             if action == "approve_spec":
                 return bool(d.get("spec_waiting"))
+            if action == "context":
+                return bool(d.get("context"))
             return True
         return True
 
@@ -557,6 +562,15 @@ class WatchApp(App):
 
         self.push_screen(AskText("Umbra confirmará tus cambios, correrá los tests y seguirá "
                                  "desde Revisar.\n\nQué arreglaste (una línea):"), with_text)
+
+    def action_context(self) -> None:
+        """Abre en el editor el paquete de contexto que recibió el agente (solo lectura)."""
+        n = self.selected
+        if not self._decision.get("context"):
+            self.notify("Esta tarea no pasó por Explorar.")
+            return
+        self._do(f"umbra explain {n}", lambda ctx: service.open_context(ctx, n),
+                 lambda r: f"Paquete abierto con {r['editor']}: {r['path']}")
 
     def action_approve_spec(self) -> None:
         """Una sola aprobación por spec: su PR (rama de spec → base) se integra."""

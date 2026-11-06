@@ -78,6 +78,7 @@ class Explanation:
     about: dict = field(default_factory=dict)  # de qué trata (ver about())
     kind: str = ""  # situación estable para decidir acciones: draft, ready, waiting_deps,
     #                 dropped, done o el estado de la ejecución en minúsculas
+    context: dict | None = None  # el paquete que reunió Explorar (ver context_of())
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -572,7 +573,66 @@ def explain_number(conn, udir, task) -> Explanation:
     exp = explain_task(conn, task, run, stages, pending_dependencies(conn, task["id"]),
                        _policy_now(udir, run) if run and run["status"] == "BLOCKED" else None)
     exp.about = about(conn, task, run, udir.parent)
+    exp.context = context_of(conn, run["id"]) if run else None
     return exp
+
+
+CONTEXT_KINDS = ("files", "tests", "tasks", "lessons", "history")
+
+
+def fmt_miles(n) -> str:
+    """Números con espacio como separador de miles: 9310 → «9 310»."""
+    return f"{int(n or 0):,}".replace(",", " ")
+
+
+def context_of(conn, run_id: str) -> dict | None:
+    """El último paquete de contexto de la ejecución (spec 035): qué recibió el agente, cuánto
+    ocupó frente al tope, qué quedó fuera y a qué huella de la base está ligado."""
+    last = conn.execute("SELECT type, payload FROM event WHERE run_id = ? AND type IN"
+                        " ('explore.ready', 'explore.failed') ORDER BY id DESC LIMIT 1",
+                        (run_id,)).fetchone()
+    if last is None:
+        return None
+    payload, ready = json.loads(last["payload"]), last["type"] == "explore.ready"
+    art = conn.execute("SELECT path, tested_sha FROM artifact WHERE run_id = ? AND"
+                       " kind = 'context' ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                       (run_id,)).fetchone()
+    return {
+        "status": "ready" if ready else "failed",
+        "fingerprint": payload.get("fingerprint") or (art["tested_sha"] if art else None),
+        "chars": payload.get("chars"),
+        "max_chars": payload.get("max_chars"),
+        "counts": {k: len(payload.get(k) or []) for k in CONTEXT_KINDS},
+        "lessons": [str(x.get("title") or x.get("text") or x) if isinstance(x, dict) else str(x)
+                    for x in payload.get("lessons") or []],
+        "omitted": payload.get("omitted") or [],
+        "notes": payload.get("notes") or [],
+        "path": art["path"] if art else None,
+        "reason": payload.get("reason"),
+    }
+
+
+def _plural(n: int, one: str, many: str) -> str:
+    return f"{n} {one if n == 1 else many}"
+
+
+def context_counts(counts: dict) -> str:
+    """«2 archivos, 1 test, 0 tareas previas y 0 lecciones»."""
+    parts = [_plural(counts.get("files", 0), "archivo", "archivos"),
+             _plural(counts.get("tests", 0), "test", "tests"),
+             _plural(counts.get("tasks", 0), "tarea previa", "tareas previas")]
+    return ", ".join(parts) + " y " + _plural(counts.get("lessons", 0), "lección", "lecciones")
+
+
+def context_size(ctx: dict) -> str:
+    return f"{fmt_miles(ctx.get('chars'))} / {fmt_miles(ctx.get('max_chars'))}"
+
+
+def omitted_text(omitted: list[dict]) -> str:
+    names = {"files": "archivos", "tests": "tests", "lessons": "lecciones",
+             "history": "commits", "tasks": "tareas previas"}
+    return ", ".join(f"{o.get('count')} {names.get(o.get('kind'), o.get('kind'))}"
+                     for o in omitted)
 
 
 PRIORITIES = {1: "alta", 2: "media", 3: "baja"}
@@ -703,6 +763,12 @@ def narrate(event: dict) -> str | None:
         case "evidence.screenshots":
             n = p.get("count", 0)
             return f"  {n} captura{'s' if n != 1 else ''} del navegador como evidencia."
+        case "explore.ready":
+            counts = {k: len(p.get(k) or []) for k in CONTEXT_KINDS}
+            return f"  Explorar reunió {context_counts(counts)} ({context_size(p)})"
+        case "explore.failed":
+            return (f"  Explorar no pudo reunir el contexto: {p.get('reason')}; la tarea siguió "
+                    "sin él.")
         case "run.integrated":
             return (f"Integrada en {p.get('branch')} (PR #{p.get('pr')}): la spec se aprueba "
                     "completa al final.")

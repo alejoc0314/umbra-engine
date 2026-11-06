@@ -158,3 +158,77 @@ def test_explanation_shows_what_the_agent_planned_and_did(env):
 def test_task_without_criteria_is_flagged(env):
     env.umbra("task", "add", "Algo vago", "--draft")
     assert "Sin criterios de aceptación" in render_text(explain_json(env))
+
+
+# ---------- el contexto se ve como evidencia (spec 035, US2) ----------
+def context_run(env):
+    from tests.acceptance.test_e2 import run_feature
+    env.mode("noop", "ok", "noop")
+    env.umbra("task", "add", "Sumar correctamente", "-d", "add de calc.py debe sumar",
+              "-a", "add(2, 3) == 5")
+    assert run_feature(env) == "WAITING_APPROVAL"
+
+
+def test_explain_shows_the_context_package(env):
+    context_run(env)
+    ctx = explain_json(env)["context"]
+    assert ctx["status"] == "ready" and ctx["fingerprint"]
+    assert ctx["chars"] <= ctx["max_chars"] and isinstance(ctx["omitted"], list)
+    assert ctx["counts"]["files"] >= 1 and ctx["counts"]["tests"] == 1
+    assert ctx["path"].endswith(".md")
+    art = env.conn.execute("SELECT tested_sha FROM artifact WHERE kind = 'context'").fetchone()
+    assert ctx["fingerprint"] == art[0]  # ligado a la huella de la base explorada
+    text = env.umbra("explain", "1").output
+    assert "Contexto" in text and f"/ {ex.fmt_miles(ctx['max_chars'])}" in text
+    assert "1 test" in text
+
+
+def test_explain_shows_why_explore_failed(env, monkeypatch):
+    from umbra.management import explore
+
+    def boom(*a, **kw):
+        raise RuntimeError("git se colgó")
+
+    monkeypatch.setattr(explore, "explore", boom)
+    context_run(env)
+    ctx = explain_json(env)["context"]
+    assert ctx["status"] == "failed" and "git se colgó" in ctx["reason"]
+    assert "git se colgó" in env.umbra("explain", "1").output
+
+
+def test_task_without_explore_has_no_context(env):
+    task(env)
+    assert explain_json(env)["context"] is None
+    env.umbra("run", "1", "--foreground")  # rutina quick: sin Explorar
+    assert explain_json(env)["context"] is None
+
+
+def test_new_base_explores_again_and_each_package_keeps_its_sha(env):
+    from umbra.actions import git
+    from umbra.routines.engine import for_run
+    from umbra.unified.project import load_project
+    context_run(env)
+    run = env.run()
+    conn = env.conn
+    e = for_run(env.root, env.root / ".umbra", conn, load_project(env.root), run["id"])
+    e.explore_stage(run["id"])  # misma base: se reutiliza
+    assert conn.execute("SELECT COUNT(*) FROM artifact WHERE kind = 'context'").fetchone()[0] == 1
+    part = e.parts(e.run_row(run["id"]))[0]
+    e.set_base(run["id"], part, git.head(part.wt))  # otra base: se explora de nuevo
+    e.explore_stage(run["id"])
+    conn.commit()
+    shas = [r[0] for r in conn.execute("SELECT tested_sha FROM artifact WHERE kind = 'context'"
+                                       " ORDER BY created_at, rowid")]
+    assert len(shas) == 2 and shas[0] != shas[1]
+    assert explain_json(env)["context"]["fingerprint"] == shas[1]
+
+
+def test_narration_of_explore():
+    ready = ex.narrate({"type": "explore.ready", "payload": {
+        "files": [{}, {}], "tests": [{}], "tasks": [], "lessons": [],
+        "chars": 9310, "max_chars": 12000}})
+    assert ready.startswith("  Explorar reunió 2 archivos, 1 test")
+    assert ready.endswith("(9 310 / 12 000)")
+    assert ex.fmt_miles(512) == "512"
+    failed = ex.narrate({"type": "explore.failed", "payload": {"reason": "git se colgó"}})
+    assert "git se colgó" in failed and "siguió sin él" in failed
