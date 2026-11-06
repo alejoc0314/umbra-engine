@@ -18,6 +18,8 @@ versión publicada.
 - **Tú decides sobre cada lección**: `umbra lesson list|show|approve|discard|retire|resolve|harvest`
   (todos con `--json`), la tecla `l` en `umbra watch` y `/lecciones` en Telegram. Las aprobadas
   llegan a las tareas nuevas de su zona; el chat solo puede consultarlas.
+- **`umbra watch` ya no se cae cuando dos refrescos coinciden**: con la máquina cargada, un refresco
+  lento y el siguiente leían a la vez la misma conexión y la pantalla podía cerrarse con un error.
 
 ## v0.27.0 — 2026-11-05
 

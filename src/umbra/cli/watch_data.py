@@ -1,14 +1,15 @@
 """Lo que `umbra watch` muestra, calculado fuera del hilo de la pantalla.
 
-`Loader` tiene su propia conexión y se usa desde un solo worker a la vez. Antes de consultar nada
-mira `PRAGMA data_version`: si nadie escribió desde la última vez y la persona no cambió de tarea ni
-de pestaña, no hay nada que recalcular (salvo el registro del agente en curso, que se sigue por
-tamaño de archivo). Cuando sí hay cambios, lee cada tabla una sola vez (nunca una consulta por
-tarea) y devuelve una instantánea que la pantalla aplica de forma incremental.
+`Loader` tiene su propia conexión y un cerrojo: un solo refresco la usa a la vez. Antes de
+consultar nada mira `PRAGMA data_version`: si nadie escribió desde la última vez y la persona no
+cambió de tarea ni de pestaña, no hay nada que recalcular (salvo el registro del agente en curso,
+que se sigue por tamaño de archivo). Cuando sí hay cambios, lee cada tabla una sola vez (nunca una
+consulta por tarea) y devuelve una instantánea que la pantalla aplica de forma incremental.
 """
 
 import io
 import json
+import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -125,7 +126,10 @@ def report_ansi(data: dict, width: int = EVIDENCE_WIDTH, raw: bool = False) -> s
 class Loader:
     def __init__(self, udir: Path, on_lessons=None):
         self.udir, self.root = udir, udir.parent
-        self.conn = open_store(udir, same_thread=False)  # solo la usa el worker exclusivo
+        self.conn = open_store(udir, same_thread=False)  # solo la usa un refresco a la vez
+        # «exclusive» no detiene un worker de hilo ya lanzado: sin el cerrojo, dos refrescos
+        # compartirían la conexión y una consulta pisada devolvería None
+        self.busy = threading.Lock()
         self.version: int | None = None
         self.explained: dict[int, tuple[tuple, ex.Explanation]] = {}
         self.seen: tuple | None = None  # (selected, raw, pestaña)
@@ -140,11 +144,17 @@ class Loader:
         self.width = EVIDENCE_WIDTH  # ancho al que se envuelve el informe (lo fija la pantalla)
 
     def close(self) -> None:
-        self.conn.close()
+        with self.busy:
+            self.conn.close()
 
     def load(self, selected: int | None, raw: bool, shown_run: str | None, last_seq: int,
              force: bool = False, want: str = "situation") -> Snapshot | None:
         """None = nada cambió desde la última instantánea."""
+        with self.busy:
+            return self._load(selected, raw, shown_run, last_seq, force, want)
+
+    def _load(self, selected: int | None, raw: bool, shown_run: str | None, last_seq: int,
+              force: bool, want: str) -> Snapshot | None:
         conn = self.conn
         version = data_version(conn)
         if selected is None:
@@ -222,7 +232,6 @@ class Loader:
     def _lessons(self) -> int:
         """Las lecciones por decidir; se cuentan en un hilo aparte (git y lessons.db no frenan
         la pantalla) como mucho cada LESSONS_EVERY segundos. Devuelve el último número."""
-        import threading
         import time
         if not self.lessons_busy and time.monotonic() - self.lessons_at >= LESSONS_EVERY:
             self.lessons_at, self.lessons_busy = time.monotonic(), True
