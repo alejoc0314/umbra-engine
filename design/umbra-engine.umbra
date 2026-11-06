@@ -3832,7 +3832,7 @@
                       "type": "text",
                       "name": "Texto",
                       "width": "fill_container",
-                      "content": "No uses float para costos: Decimal desde el parser",
+                      "content": "No uses float para costos: Decimal desde el parser hasta la base de datos",
                       "fill": "$text",
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -4978,7 +4978,7 @@
                           "id": "R08xt",
                           "type": "text",
                           "name": "Aviso texto",
-                          "content": "≠ conflicto con L8 · revisa cuál de las dos vale",
+                          "content": "≠ conflicto con L8 · r para resolverlo",
                           "fill": "$error",
                           "fontFamily": "$mono",
                           "fontSize": 12,
@@ -6600,7 +6600,7 @@
                               "id": "iW7hP",
                               "type": "text",
                               "name": "Aviso texto",
-                              "content": "≠ conflicto con L8 · revisa cuál de las dos vale",
+                              "content": "≠ conflicto con L8 · r para resolverlo",
                               "fill": "$error",
                               "fontFamily": "$mono",
                               "fontSize": 12,
@@ -8548,7 +8548,7 @@
                           "id": "rH0ME",
                           "type": "text",
                           "name": "Aviso texto",
-                          "content": "≠ conflicto con L8 · revisa cuál de las dos vale",
+                          "content": "≠ conflicto con L8 · r para resolverlo",
                           "fill": "$error",
                           "fontFamily": "$mono",
                           "fontSize": 12,
@@ -10137,7 +10137,7 @@
                           "id": "ofEf1",
                           "type": "text",
                           "name": "Aviso texto",
-                          "content": "≠ conflicto con L8 · revisa cuál de las dos vale",
+                          "content": "≠ conflicto con L8 · r para resolverlo",
                           "fill": "$error",
                           "fontFamily": "$mono",
                           "fontSize": 12,
@@ -11639,7 +11639,7 @@
                           "id": "yU9Sp",
                           "type": "text",
                           "name": "Aviso texto",
-                          "content": "≠ conflicto con L8 · revisa cuál de las dos vale",
+                          "content": "≠ conflicto con L8 · r para resolverlo",
                           "fill": "$error",
                           "fontFamily": "$mono",
                           "fontSize": 12,
@@ -11760,7 +11760,7 @@
                   "type": "text",
                   "name": "Aviso",
                   "width": "fill_container",
-                  "content": "≠ conflicto con L8 (descartada), que permitía comandos sin chat_id en local. Revisa cuál de las dos vale.",
+                  "content": "≠ conflicto con L8 (descartada), que permitía comandos sin chat_id en local. Con r eliges cuál de las dos vale.",
                   "fill": "$error",
                   "fontFamily": "$mono",
                   "fontSize": 12,
@@ -11864,13 +11864,27 @@
                       }
                     },
                     {
+                      "id": "tZj43",
+                      "type": "ref",
+                      "name": "Atajo resolver conflicto",
+                      "ref": "zcunl",
+                      "descendants": {
+                        "JvyOn": {
+                          "content": "resolver conflicto"
+                        },
+                        "aL77H": {
+                          "content": "r"
+                        }
+                      }
+                    },
+                    {
                       "id": "Ij5CI",
                       "type": "ref",
                       "name": "Atajo historial completo",
                       "ref": "zcunl",
                       "descendants": {
                         "JvyOn": {
-                          "content": "historial completo"
+                          "content": "historial"
                         },
                         "aL77H": {
                           "content": "v"
@@ -13302,7 +13316,7 @@
                           "id": "iDnrb",
                           "type": "text",
                           "name": "Aviso texto",
-                          "content": "≠ conflicto con L8 · revisa cuál de las dos vale",
+                          "content": "≠ conflicto con L8 · r para resolverlo",
                           "fill": "$error",
                           "fontFamily": "$mono",
                           "fontSize": 12,
@@ -15182,7 +15196,7 @@
                           "id": "RvpTV",
                           "type": "text",
                           "name": "Aviso texto",
-                          "content": "≠ conflicto con L8 · revisa cuál de las dos vale",
+                          "content": "≠ conflicto con L8 · r para resolverlo",
                           "fill": "$error",
                           "fontFamily": "$mono",
                           "fontSize": 12,
@@ -15710,7 +15724,7 @@
               "id": "NP3H8",
               "type": "text",
               "name": "Estado icono",
-              "content": "⠹",
+              "content": "↻",
               "fill": "$primary",
               "fontFamily": "$mono",
               "fontSize": 13,
@@ -16847,7 +16861,7 @@
                           "id": "qcHYK",
                           "type": "text",
                           "name": "Aviso texto",
-                          "content": "≠ conflicto con L8 · revisa cuál de las dos vale",
+                          "content": "≠ conflicto con L8 · r para resolverlo",
                           "fill": "$error",
                           "fontFamily": "$mono",
                           "fontSize": 12,
@@ -17285,7 +17299,7 @@
               "id": "Yugxk",
               "type": "text",
               "name": "Estado icono",
-              "content": "↻",
+              "content": "✕",
               "fill": "$error",
               "fontFamily": "$mono",
               "fontSize": 13,
@@ -17730,15 +17744,49 @@
                       }
                     },
                     {
-                      "id": "VlELL",
-                      "type": "text",
-                      "name": "umbra lesson list --json",
-                      "content": "umbra lesson list --json da lo mismo en la terminal",
-                      "fill": "$muted",
-                      "fontFamily": "$mono",
-                      "fontSize": 12,
-                      "fontWeight": "normal",
-                      "lineHeight": 1.54
+                      "id": "Dn1M1",
+                      "type": "frame",
+                      "name": "Pista CLI",
+                      "alignItems": "center",
+                      "gap": 8,
+                      "layout": "horizontal",
+                      "children": [
+                        {
+                          "id": "Lc6lJ",
+                          "type": "frame",
+                          "name": "Código",
+                          "cornerRadius": 4,
+                          "fill": "$surface-hi",
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "id": "wlvm5",
+                              "type": "text",
+                              "name": "cmd",
+                              "content": "umbra lesson list --json",
+                              "fill": "$text",
+                              "fontFamily": "$mono",
+                              "fontSize": 12,
+                              "fontWeight": "700",
+                              "lineHeight": 1.54
+                            }
+                          ]
+                        },
+                        {
+                          "id": "cybST",
+                          "type": "text",
+                          "name": "da lo mismo",
+                          "content": "da lo mismo en la terminal",
+                          "fill": "$muted",
+                          "fontFamily": "$mono",
+                          "fontSize": 12,
+                          "fontWeight": "normal",
+                          "lineHeight": 1.54
+                        }
+                      ]
                     }
                   ]
                 }
@@ -17772,6 +17820,7 @@
               "type": "ref",
               "name": "Atajo moverse",
               "ref": "zcunl",
+              "enabled": false,
               "descendants": {
                 "JvyOn": {
                   "content": "moverse"
@@ -17786,6 +17835,7 @@
               "type": "ref",
               "name": "Atajo cambiar vista",
               "ref": "zcunl",
+              "enabled": false,
               "descendants": {
                 "JvyOn": {
                   "content": "cambiar vista"
@@ -17835,6 +17885,7 @@
               "type": "text",
               "name": "Nota pie",
               "content": "las acciones de la lección están a la derecha",
+              "enabled": false,
               "fill": "$muted",
               "fontFamily": "$mono",
               "fontSize": 11,
