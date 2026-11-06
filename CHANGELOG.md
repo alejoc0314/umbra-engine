@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.26.3 — 2026-11-05
+
 - Abrir a la vez un proyecto nuevo desde dos sitios (el puente y una tarea, por ejemplo) ya no
   falla con «database is locked» ni «table already exists».
 
