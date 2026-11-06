@@ -1,5 +1,6 @@
 name: feature
 stages:
+  - name: explore   # umbra reúne el contexto de la tarea, sin modelo
   - name: plan
     profile: planner
   - name: design      # solo si el plan dice que la tarea toca la interfaz

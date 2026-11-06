@@ -5,11 +5,11 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 AGENT_STAGES = ("plan", "design", "build", "review", "verify")
-STAGES = (*AGENT_STAGES, "scan", "ship")
+STAGES = ("explore", *AGENT_STAGES, "scan", "ship")
 
 
 class Stage(BaseModel):
-    name: Literal["plan", "design", "build", "review", "verify", "scan", "ship"]
+    name: Literal["explore", "plan", "design", "build", "review", "verify", "scan", "ship"]
     profile: str | None = None
     fallback_profile: str | None = None  # si el agente falla (p. ej. modelo saturado)
     escalation: list[str] = Field(default_factory=list)  # perfiles más fuertes, en orden
