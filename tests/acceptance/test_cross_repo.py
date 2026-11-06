@@ -198,3 +198,16 @@ def test_verify_starts_every_repo_and_the_front_points_to_the_back(ws, tmp_path)
     assert [s["repo"] for s in started] == ["api", "web"]
     assert urls["web"] in ws.claude_calls()[-1]["prompt"]  # el navegador abre el front
     assert not port_open(urls["api"]) and not port_open(urls["web"])
+
+
+def test_replicate_in_a_workspace_runs_on_the_front_with_the_back_up(ws, tmp_path):
+    urls = with_devs(ws, tmp_path)
+    ws.mode("replicate")
+    out = ws.umbra("design", "replicar", "-y").output
+    assert "Réplica guardada" in out
+    web = ws.root / "web"
+    files = git(web, "log", "-1", "--name-only", "--format=").stdout
+    assert "design/actual/inicio.png" in files  # en el repo de la app (el último)
+    assert not (ws.root / "api" / "design").exists()
+    assert (ws.state / "web-env.txt").read_text() == urls["api"]  # el back, levantado antes
+    assert not port_open(urls["api"]) and not port_open(urls["web"])

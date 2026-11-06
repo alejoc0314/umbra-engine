@@ -179,6 +179,8 @@ repos = ["api-landing-manager", "front-landing-manager"]  # orden de integració
   ejemplo, `UMBRA_URL_API`): haz que el front la use para apuntar al back de la tarea. El
   navegador abre la app del último repo, o la de `[workspace] app`. En estas tareas se salta la
   etapa de diseño: diseña antes, en una tarea del front.
+- `umbra design replicar` (`/replicar`) levanta el `dev` de cada repo en orden y deja la réplica
+  en el repo de la app: el de `[workspace] app` o el último de la lista.
 - Si un repo ya tenía tareas en marcha con su propio umbra, termínalas antes de unirlo. El
   onboarding se hace en cada repo antes de crear el espacio.
 
