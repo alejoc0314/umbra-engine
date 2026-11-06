@@ -40,5 +40,13 @@ celdas de relleno. Separación entre paneles: 1 celda.
 - **Panel**: borde de una línea con título incrustado en el borde superior.
 - **Fila de lista**: marcador de estado (`●` propuesta, `✓` aprobada, `–` descartada, `↺` retirada), id `L7`, texto truncado, zona.
 - **Pie de atajos**: tecla en primario sobre superficie-alta + verbo en texto-tenue. Solo se muestran las acciones válidas para el estado seleccionado.
-- **Editor de una línea** (modal): input con el texto propuesto y `Enter aprobar · Esc cancelar`.
+- **Editor de una línea** (modal): superficie con borde primario sobre la bandeja velada; campo
+  de texto (borde primario con foco, marca `editado` si cambió), el original debajo en
+  texto-tenue («se guarda en el historial»), campo de zona (Tab), el efecto en una frase y
+  `Enter aprobar · Tab cambiar a zona · Ctrl+Z volver al original · Esc cancelar`.
+- **Detalle de lección**: id + chip de estado, texto, ZONA, HISTORIAL (origen `#N`, verbo,
+  qué pasó, fecha; incluye el texto original si se editó y en cuántas ejecuciones se usó),
+  SE APLICA EN, y abajo solo las acciones válidas: propuesta `a`/`d`, vigente `x`,
+  descartada/retirada ninguna (solo `Enter` historial).
+- **Vacío**: frase en negrita, explicación tenue de cuándo propone umbra y el atajo `h`.
 - **Telegram**: mensajes con texto plano y botones en línea (Aprobar · Descartar · Ver).
