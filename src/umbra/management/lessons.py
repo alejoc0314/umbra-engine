@@ -174,6 +174,15 @@ def record(db: sqlite3.Connection, key: str, d: LessonDraft, origins: list[dict]
                 " ?, ?)", (key, target, text, json.dumps(zone), json.dumps(d.conflicts_with),
                            project_name, stamp, stamp))
             _history(db, key, target, "proposed", stamp)
+            for other in d.conflicts_with:  # el conflicto se marca en las dos
+                row = db.execute("SELECT conflicts FROM lesson WHERE project_key = ? AND"
+                                 " number = ?", (key, other)).fetchone()
+                if row is None or other == target:
+                    continue
+                db.execute("UPDATE lesson SET conflicts = ? WHERE project_key = ? AND"
+                           " number = ?", (json.dumps(sorted(set(json.loads(row["conflicts"]))
+                                                             | {target})), key, other))
+                _history(db, key, other, "conflict", stamp)
         elif target is not None and fresh:
             _history(db, key, target, "merged_origin", stamp)
         for o in fresh:
@@ -190,10 +199,197 @@ def record(db: sqlite3.Connection, key: str, d: LessonDraft, origins: list[dict]
     return created
 
 
-def _history(db, key: str, number: int, action: str, stamp: str) -> None:
+def _history(db, key: str, number: int, action: str, stamp: str, actor: str = "umbra",
+             channel: str = "engine", before: str | None = None) -> None:
     db.execute("INSERT INTO lesson_history (project_key, number, action, actor, channel,"
-               " created_at) VALUES (?, ?, ?, 'umbra', 'engine', ?)",
-               (key, number, action, stamp))
+               " before, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+               (key, number, action, actor, channel, before, stamp))
+
+
+# ---------- decisiones de la persona ----------
+class LessonError(Exception):
+    """Un error para la persona: la lección no existe o la transición no vale."""
+
+
+STATUS_ES = {"proposed": "propuesta", "approved": "aprobada", "discarded": "descartada",
+             "retired": "retirada"}
+# acción → (estados desde los que vale, estado al que lleva)
+TRANSITIONS = {"approve": ({"proposed", "retired"}, "approved"),
+               "discard": ({"proposed"}, "discarded"),
+               "retire": ({"approved"}, "retired")}
+_VERBS = {"approve": "aprobar", "discard": "descartar", "retire": "retirar"}
+_NUMBER = re.compile(r"^[Ll]?(\d+)$")
+
+
+def parse_number(ref: str | int) -> int:
+    """`L7` o `7` → 7."""
+    m = _NUMBER.match(str(ref).strip())
+    if not m:
+        raise LessonError(f"«{ref}» no es una lección: usa L7 o 7")
+    return int(m.group(1))
+
+
+def _matches(glob: str, path: str) -> bool:
+    return fnmatch.fnmatchcase(path.replace("\\", "/"), glob.replace("\\", "/"))
+
+
+def stale(zone: list[str], files: list[str]) -> bool:
+    """Posiblemente obsoleta: tiene zona y ningún archivo actual del repo cae en ella."""
+    return bool(zone) and not any(_matches(g, f) for g in zone for f in files)
+
+
+def _get(db, key: str, n: int) -> sqlite3.Row:
+    row = db.execute("SELECT * FROM lesson WHERE project_key = ? AND number = ?",
+                     (key, n)).fetchone()
+    if row is None:
+        raise LessonError(f"L{n} no existe en este proyecto (mira `umbra lesson list --all`)")
+    return row
+
+
+def _item(db, row, files: list[str] | None = None) -> dict:
+    zone = json.loads(row["zone"])
+    origins = db.execute("SELECT COUNT(*) FROM lesson_origin WHERE project_key = ? AND"
+                         " number = ?", (row["project_key"], row["number"])).fetchone()[0]
+    return {"id": f"L{row['number']}", "number": row["number"], "status": row["status"],
+            "text": row["text"], "zone": zone, "origins": origins,
+            "stale": stale(zone, files) if files else False,
+            "conflicts": [f"L{c}" for c in json.loads(row["conflicts"])],
+            "updated_at": row["updated_at"]}
+
+
+_ORDER = {"proposed": 0, "approved": 1, "retired": 2, "discarded": 3}
+
+
+def list_(db, key: str, status: str | None = None, all_: bool = False,
+          files: list[str] | None = None) -> list[dict]:
+    """Por defecto propuestas y aprobadas (propuestas primero); `all_` incluye el resto."""
+    rows = list(db.execute("SELECT * FROM lesson WHERE project_key = ?", (key,)))
+    if status:
+        rows = [r for r in rows if r["status"] == status]
+    elif not all_:
+        rows = [r for r in rows if r["status"] in ("proposed", "approved")]
+    rows.sort(key=lambda r: (_ORDER[r["status"]], -r["number"]))
+    return [_item(db, r, files) for r in rows]
+
+
+def show(db, key: str, n: int, conn: sqlite3.Connection | None = None,
+         files: list[str] | None = None) -> dict:
+    """La lección con sus orígenes, su historial y las tareas en las que se aplicó."""
+    out = _item(db, _get(db, key, n), files)
+    out["origins_detail"] = [dict(r) for r in db.execute(
+        "SELECT kind, task, run_id, stage, detail, created_at FROM lesson_origin WHERE"
+        " project_key = ? AND number = ? ORDER BY created_at, rowid", (key, n))]
+    out["history"] = [dict(r) for r in db.execute(
+        "SELECT action, actor, channel, before, created_at FROM lesson_history WHERE"
+        " project_key = ? AND number = ? ORDER BY rowid", (key, n))]
+    out["applied_in"] = applied_in(conn, n) if conn is not None else []
+    return out
+
+
+def applied_in(conn: sqlite3.Connection, n: int) -> list[dict]:
+    """Las ejecuciones cuyo paquete de contexto llevó la lección (eventos `explore.ready`)."""
+    out = []
+    try:
+        rows = list(conn.execute(
+            "SELECT e.run_id, e.payload, e.created_at, t.number FROM event e JOIN run r ON"
+            " r.id = e.run_id JOIN task t ON t.id = r.task_id WHERE e.type = 'explore.ready'"
+            " ORDER BY e.id"))
+    except sqlite3.Error:
+        return []
+    for r in rows:
+        used = json.loads(r["payload"] or "{}").get("lessons") or []
+        if any(isinstance(x, dict) and x.get("id") == n for x in used):
+            out.append({"task": r["number"], "run_id": r["run_id"],
+                        "created_at": r["created_at"]})
+    return out
+
+
+def _move(db, key: str, n: int, action: str, actor: str, channel: str,
+          changes: dict | None = None, before: str | None = None) -> dict:
+    allowed, target = TRANSITIONS[action]
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        row = _get(db, key, n)
+        if row["status"] not in allowed:
+            raise LessonError(f"no se puede {_VERBS[action]} L{n}: está "
+                              f"{STATUS_ES[row['status']]}")
+        stamp = now()
+        sets = {"status": target, "updated_at": stamp, **(changes or {})}
+        db.execute(f"UPDATE lesson SET {', '.join(f'{c} = ?' for c in sets)} WHERE"
+                   " project_key = ? AND number = ?", (*sets.values(), key, n))
+        _history(db, key, n, target, stamp, actor, channel, before)
+        db.execute("COMMIT")
+    except BaseException:
+        db.execute("ROLLBACK")
+        raise
+    return _item(db, _get(db, key, n))
+
+
+def approve(db, key: str, n: int, text: str | None = None, zone: list[str] | None = None,
+            project_wide: bool = False, *, actor: str, channel: str) -> dict:
+    """Aprueba (o vuelve a aprobar una retirada). Si se edita, lo anterior va al historial."""
+    row = _get(db, key, n)
+    changes, before = {}, {}
+    if text is not None:
+        clean = redact(" ".join(text.split()))
+        if not clean or len(clean) > STORED_CHARS:
+            raise LessonError(f"el texto debe tener entre 1 y {STORED_CHARS} caracteres")
+        if clean != row["text"]:
+            changes["text"], before["text"] = clean, row["text"]
+    if project_wide or zone is not None:
+        new = [] if project_wide else list(dict.fromkeys(
+            z.replace("\\", "/").strip() for z in zone if z.strip()))
+        if any(not zone_ok(z) for z in new):
+            raise LessonError("la zona debe ser un glob relativo al repo, sin «..» "
+                              "(p. ej. src/pagos/**)")
+        if new != json.loads(row["zone"]):
+            changes["zone"], before["zone"] = json.dumps(new), json.loads(row["zone"])
+    return _move(db, key, n, "approve", actor, channel, changes,
+                 json.dumps(before, ensure_ascii=False) if before else None)
+
+
+def discard(db, key: str, n: int, reason: str = "", *, actor: str, channel: str) -> dict:
+    return _move(db, key, n, "discard", actor, channel,
+                 before=json.dumps({"reason": reason}, ensure_ascii=False) if reason else None)
+
+
+def retire(db, key: str, n: int, reason: str = "", *, actor: str, channel: str) -> dict:
+    return _move(db, key, n, "retire", actor, channel,
+                 before=json.dumps({"reason": reason}, ensure_ascii=False) if reason else None)
+
+
+def resolve_conflict(db, key: str, a: int, b: int, *, actor: str, channel: str) -> list[dict]:
+    """Marca dos lecciones como compatibles: quita el conflicto entre ellas."""
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        rows = {a: _get(db, key, a), b: _get(db, key, b)}
+        stamp = now()
+        for n, other in ((a, b), (b, a)):
+            left = [c for c in json.loads(rows[n]["conflicts"]) if c != other]
+            db.execute("UPDATE lesson SET conflicts = ?, updated_at = ? WHERE project_key = ?"
+                       " AND number = ?", (json.dumps(left), stamp, key, n))
+            _history(db, key, n, "resolved", stamp, actor, channel, f"L{other}")
+        db.execute("COMMIT")
+    except BaseException:
+        db.execute("ROLLBACK")
+        raise
+    return [_item(db, _get(db, key, a)), _item(db, _get(db, key, b))]
+
+
+def applicable(db, key: str, files: list[str]) -> list[dict]:
+    """Las aprobadas y sin conflicto que tocan los archivos (zona `[]` = todo el proyecto):
+    primero las de zona específica y, dentro de cada grupo, la aprobación más reciente."""
+    out = []
+    for r in db.execute("SELECT * FROM lesson WHERE project_key = ? AND status = 'approved'"
+                        " ORDER BY updated_at DESC, number DESC", (key,)):
+        if json.loads(r["conflicts"]):
+            continue
+        zone = json.loads(r["zone"])
+        if zone and not any(_matches(g, f) for g in zone for f in files):
+            continue
+        out.append({"id": r["number"], "text": r["text"], "zone": zone})
+    out.sort(key=lambda x: not x["zone"])  # estable: conserva lo más reciente primero
+    return out
 
 
 # ---------- cosecha ----------
@@ -251,6 +447,18 @@ def _roots(engine) -> list[Path]:
         if members:
             return sorted(members.values())
     return [engine.root]
+
+
+def key_for(engine) -> str | None:
+    """La clave vigente del proyecto del engine; None si `lessons.db` no se puede abrir."""
+    try:
+        db = open_db()
+    except (sqlite3.Error, OSError):
+        return None
+    try:
+        return resolve(db, project_key(_roots(engine)))
+    finally:
+        db.close()
 
 
 def _files(conn: sqlite3.Connection, run_id: str) -> list[str]:

@@ -211,3 +211,19 @@ def test_agent_story_reads_claude_and_codex():
         {"type": "turn.completed"}])
     assert agent_story.lines(codex) == ["Codex empieza.", "Ejecuta `ls`", "💬 Hola", "Terminó."]
     assert agent_story.lines("no es json\n{\"type\": \"raro\"}") == []
+
+
+def test_watch_does_not_count_lessons_without_lessons_db(env, monkeypatch):
+    """Sin lessons.db no hay nada que decidir: el conteo de la cabecera de watch no corre git
+    ni crea la base (antes frenaba la primera carga de watch con la máquina cargada)."""
+    from umbra import service
+    from umbra.management import lessons
+    from umbra.unified import config as cfg
+
+    def no_git(roots):
+        raise AssertionError("no debe calcular la clave del proyecto")
+
+    monkeypatch.setattr(lessons, "project_key", no_git)
+    assert not (cfg.umbra_home() / "lessons.db").exists()
+    assert service.lesson_pending(service.load(env.root)) == 0
+    assert not (cfg.umbra_home() / "lessons.db").exists()

@@ -29,7 +29,7 @@ from umbra import service
 from umbra.blocks import lease
 from umbra.cli import theme
 from umbra.cli.explain import renderable
-from umbra.cli.modals import AskText, Confirm, PickOne, PickStage, TextView
+from umbra.cli.modals import AskText, Confirm, LessonsScreen, PickOne, PickStage, TextView
 from umbra.cli.watch_data import Loader, Snapshot
 from umbra.unified import clock, project, version
 from umbra.unified import explain as ex
@@ -74,7 +74,7 @@ PANELS = {"timeline": ("Qué ha pasado", "log"), "evidence": ("Evidencia", "evid
           "memory": ("Aprendido en este repo", "memory")}
 PANEL_KEYS = {"e": "evidence", "d": "changes", "g": "agent", "m": "memory"}
 PANEL_KEYS_INV = {p: k for k, p in PANEL_KEYS.items()}
-MAIN_ACTIONS = (*AVAILABLE, "spec", "toggle_raw", "quit", "panel", "projects")
+MAIN_ACTIONS = (*AVAILABLE, "spec", "toggle_raw", "quit", "panel", "projects", "lessons")
 LEASE_TTL_S, LEASE_RENEW_S = 60, 20
 APPROVE_WIDTH = 92  # ancho útil del cuerpo de la confirmación (caja de 100 con borde y padding)
 GROUP_GLYPHS = ("⚠", "▶", "·", "✓")  # etiqueta de fila por grupo: GROUPS de watch_data
@@ -120,6 +120,7 @@ class WatchApp(App):
         Binding("m", "panel('memory')", "Aprendido"),
         Binding("h", "findings", "Hallazgos"),
         Binding("k", "context", "Ver paquete"),
+        Binding("l", "lessons", "Lecciones", show=False),  # en la ayuda y en la cabecera
         Binding("c", "cancel", "Cancelar"),
         Binding("x", "drop", "Descartar"),
         Binding("s", "spec", "Spec nueva"),
@@ -149,6 +150,7 @@ class WatchApp(App):
         self._attempt_run: str | None = None
         self._spec_lines: list | None = None
         self._header_text: str | None = None
+        self._last_header = None  # la última cabecera: se repinta cuando llega el conteo
         self._statuses: dict[int, str | None] | None = None  # para avisar solo de cambios
         self._shown_situation: tuple | None = None
         self._shown_extra: dict[str, tuple] = {}
@@ -200,7 +202,7 @@ class WatchApp(App):
             self.notify(warning, severity="warning")
         self._prefs_ready = True  # antes, el tema por defecto pisaría el guardado
         self._log_title()
-        self._loader = Loader(self.udir)
+        self._loader = Loader(self.udir, on_lessons=self._lessons_counted)
         self._conn = open_store(self.udir)
         self._lease = (f"watch:{os.getpid()}@{socket.gethostname()}", 0)
         self._renew_lease()
@@ -563,6 +565,10 @@ class WatchApp(App):
         self.push_screen(AskText("Umbra confirmará tus cambios, correrá los tests y seguirá "
                                  "desde Revisar.\n\nQué arreglaste (una línea):"), with_text)
 
+    def action_lessons(self) -> None:
+        """Panel Lecciones: propuestas primero; aprobar, descartar o retirar (spec 035)."""
+        self.push_screen(LessonsScreen(self.root))
+
     def action_context(self) -> None:
         """Abre en el editor el paquete de contexto que recibió el agente (solo lectura)."""
         n = self.selected
@@ -742,10 +748,24 @@ class WatchApp(App):
             self._memory(snap)
         self._release()
 
+    def _lessons_counted(self) -> None:
+        """Desde el hilo del conteo: la cabecera trae el número sin esperar al próximo tick."""
+        if self._alive:
+            try:
+                self.call_from_thread(self._paint_status)
+            except RuntimeError:  # la pantalla ya se cerró
+                pass
+
     def _status(self, snap: Snapshot) -> None:
-        h = snap.header
-        if h is None:
+        if snap.header is not None:
+            self._last_header = snap.header
+            self._paint_status()
+
+    def _paint_status(self) -> None:
+        h = self._last_header
+        if h is None or not self._alive:
             return
+        lessons = self._loader.lessons_pending if self._loader else h.lessons  # el más reciente
         ok, warn = self._color("done"), self._color("blocked")
         text = Text.assemble(
             ("● worker vivo", ok) if h.worker_alive else ("○ worker parado", "dim"),
@@ -753,6 +773,10 @@ class WatchApp(App):
             f"{h.tasks} tareas", "  ·  ",
             (f"⚠ {h.attention} te necesita{'n' if h.attention != 1 else ''}", f"bold {warn}")
             if h.attention else ("nada pendiente de ti", "dim"))
+        if lessons:
+            text.append("  ·  ")
+            text.append(f"● {lessons} lecci{'ones' if lessons != 1 else 'ón'} por decidir",
+                        f"bold {warn}")
         if text.plain != self._header_text:
             self._header_text = text.plain
             self.query_one("#status", Static).update(text)

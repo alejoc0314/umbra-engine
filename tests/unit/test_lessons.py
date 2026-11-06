@@ -288,3 +288,98 @@ def test_harvest_with_a_failing_writer_keeps_the_deterministic_draft(git_repo, r
     assert stored() == ([(1, "falta validar entradas", '["src/api/**"]', "proposed")], 1)
     assert lessons.harvest(eng, ["r1"]) == 0
     assert stored()[1] == 1
+
+
+# ---------- decisiones de la persona (T032) ----------
+def proposed(db, text="Valida entradas", zone=("src/api/**",), event_id=1, conflicts=()):
+    d = LessonDraft(text=text, zone=list(zone), conflicts_with=list(conflicts))
+    return lessons.record(db, "k", d, [origin(event_id)], "calc")
+
+
+def test_parse_number_accepts_l_prefix():
+    assert lessons.parse_number("L7") == 7
+    assert lessons.parse_number("l7") == 7
+    assert lessons.parse_number("7") == 7
+    with pytest.raises(lessons.LessonError):
+        lessons.parse_number("siete")
+
+
+def test_approve_discard_retire_transitions():
+    db = lessons.open_db()
+    a, b = proposed(db), proposed(db, "Otra regla", event_id=2)
+    out = lessons.approve(db, "k", a, actor="ana", channel="cli")
+    assert out["status"] == "approved"
+    assert lessons.discard(db, "k", b, reason="no aplica", actor="ana", channel="watch")[
+        "status"] == "discarded"
+    with pytest.raises(lessons.LessonError):
+        lessons.retire(db, "k", b, actor="ana", channel="cli")  # descartada: no se retira
+    assert lessons.retire(db, "k", a, actor="ana", channel="cli")["status"] == "retired"
+    assert lessons.approve(db, "k", a, actor="ana", channel="cli")["status"] == "approved"
+    with pytest.raises(lessons.LessonError):
+        lessons.approve(db, "k", 99, actor="ana", channel="cli")
+    hist = [(r["action"], r["actor"], r["channel"]) for r in db.execute(
+        "SELECT action, actor, channel FROM lesson_history WHERE number = ? ORDER BY rowid",
+        (a,))]
+    assert hist[1:] == [("approved", "ana", "cli"), ("retired", "ana", "cli"),
+                        ("approved", "ana", "cli")]
+
+
+def test_retiring_a_proposal_is_not_valid():
+    db = lessons.open_db()
+    n = proposed(db)
+    with pytest.raises(lessons.LessonError, match="propuesta"):
+        lessons.retire(db, "k", n, actor="ana", channel="cli")
+
+
+def test_approve_with_edited_text_keeps_the_original_in_history():
+    db = lessons.open_db()
+    n = proposed(db, "Texto original")
+    out = lessons.approve(db, "k", n, text="Texto editado", zone=["src/**"], actor="ana",
+                          channel="cli")
+    assert out["text"] == "Texto editado" and out["zone"] == ["src/**"]
+    shown = lessons.show(db, "k", n)
+    approved = [h for h in shown["history"] if h["action"] == "approved"][0]
+    assert "Texto original" in approved["before"]
+    with pytest.raises(lessons.LessonError):
+        lessons.approve(db, "k", proposed(db, "x", event_id=5), zone=["../fuera"],
+                        actor="ana", channel="cli")
+
+
+def test_applicable_only_approved_specific_first_and_without_conflicts():
+    db = lessons.open_db()
+    wide = proposed(db, "Todo el proyecto", zone=())
+    api = proposed(db, "Solo api", event_id=2)
+    other = proposed(db, "Otra zona", zone=("docs/**",), event_id=3)
+    pending = proposed(db, "Pendiente", event_id=4)
+    for n in (wide, api, other):
+        lessons.approve(db, "k", n, actor="ana", channel="cli")
+    got = [x["id"] for x in lessons.applicable(db, "k", ["src/api/a.py"])]
+    assert got == [api, wide]
+    assert pending not in got
+    lessons.retire(db, "k", api, actor="ana", channel="cli")
+    assert [x["id"] for x in lessons.applicable(db, "k", ["src\\api\\a.py"])] == [wide]
+    clash = proposed(db, "Choca", zone=(), event_id=6, conflicts=[wide])
+    lessons.approve(db, "k", clash, actor="ana", channel="cli")
+    assert lessons.applicable(db, "k", ["src/api/a.py"]) == []
+    assert lessons.show(db, "k", wide)["conflicts"] == [f"L{clash}"]
+    lessons.resolve_conflict(db, "k", wide, clash, actor="ana", channel="cli")
+    assert {x["id"] for x in lessons.applicable(db, "k", ["x.py"])} == {wide, clash}
+
+
+def test_stale_when_no_file_matches_the_zone():
+    assert lessons.stale(["src/api/**"], ["docs/a.md"])
+    assert not lessons.stale(["src/api/**"], ["src/api/a.py"])
+    assert not lessons.stale([], ["a.py"])
+
+
+def test_list_puts_proposals_first_and_hides_closed_by_default():
+    db = lessons.open_db()
+    a, b, c = proposed(db), proposed(db, "B", event_id=2), proposed(db, "C", event_id=3)
+    lessons.approve(db, "k", a, actor="ana", channel="cli")
+    lessons.discard(db, "k", c, actor="ana", channel="cli")
+    assert [x["id"] for x in lessons.list_(db, "k")] == [f"L{b}", f"L{a}"]
+    assert len(lessons.list_(db, "k", all_=True)) == 3
+    assert [x["id"] for x in lessons.list_(db, "k", status="discarded")] == [f"L{c}"]
+    item = lessons.list_(db, "k")[0]
+    assert set(item) >= {"id", "status", "text", "zone", "origins", "stale", "conflicts",
+                         "updated_at"}

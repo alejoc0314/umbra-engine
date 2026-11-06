@@ -7,6 +7,7 @@ import typer
 from umbra.cli import agents, chat, db, explain, findings, management, routines, selfupdate, unified
 from umbra.cli import constitution as constitution_cli
 from umbra.cli import design as design_cli
+from umbra.cli import lessons as lessons_cli
 from umbra.cli import memory as memory_cli
 from umbra.cli import onboard as onboard_cli
 from umbra.cli import spec as spec_cli
@@ -49,6 +50,7 @@ app.command()(management.plan)
 app.add_typer(spec_cli.app, name="spec")
 app.add_typer(memory_cli.app, name="memory")
 app.add_typer(memory_cli.context_app, name="context")
+app.add_typer(lessons_cli.app, name="lesson")
 # Agentes y perfiles
 app.add_typer(agents.agent_app, name="agent")
 app.add_typer(agents.profile_app, name="profile")

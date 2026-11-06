@@ -194,3 +194,34 @@ def test_agents_do_not_inherit_the_users_global_claude_settings(env):
     for call in env.claude_calls():
         args = call["args"]
         assert args[args.index("--setting-sources") + 1] == "project"
+
+
+def test_overlapping_refreshes_never_share_the_loader_connection(env):
+    """Textual no puede interrumpir un worker de hilo: un refresco «cancelado» sigue corriendo
+    mientras empieza el siguiente. Si los dos usan a la vez la conexión del Loader, una consulta
+    pisada devuelve None (p. ej. el número de hallazgos abiertos) y tumba la pantalla."""
+    import threading
+
+    seed(env, tasks=3, events=5)
+    loader = Loader(env.root / ".umbra")
+    inside, seen = [0], []
+    real = loader._tasks
+
+    def slow_tasks():
+        inside[0] += 1
+        seen.append(inside[0])
+        time.sleep(0.3)
+        try:
+            return real()
+        finally:
+            inside[0] -= 1
+
+    loader._tasks = slow_tasks
+    threads = [threading.Thread(target=loader.load, args=(1, False, None, 0, True))
+               for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    loader.close()
+    assert seen == [1, 1]  # uno detrás de otro, nunca los dos dentro a la vez
