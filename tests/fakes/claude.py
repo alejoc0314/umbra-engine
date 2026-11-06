@@ -153,6 +153,13 @@ elif mode in ("amend", "amend_stray"):  # el redactor enmienda la constitución
     if mode == "amend_stray":
         Path("CONTEXT.md").write_text("cambiado\n")
     structured_summary = "Nuevo principio 2 (MINOR, 1.1.0)."
+elif mode in ("cross", "cross_broken", "cross_stray", "cross_one"):  # tarea entre repos (033)
+    repos = sorted(d for d in Path(".").iterdir() if (d / "calc.py").is_file())
+    for d in repos[1:] if mode == "cross_one" else repos:  # cross_one: solo el último
+        broken = mode == "cross_broken" and d == repos[-1]
+        (d / "calc.py").write_text("def add(a, b):\n    return a %s b\n" % ("-" if broken else "+"))
+    if mode == "cross_stray":
+        Path("notas.txt").write_text("fuera de los repos")
 elif mode == "touch":  # una etapa de solo lectura que escribe
     Path("intruso.txt").write_text("x")
 elif mode == "error":

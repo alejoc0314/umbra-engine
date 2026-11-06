@@ -21,9 +21,11 @@ from umbra.contracts.profile import McpServer, Profile
 from umbra.contracts.routine import Stage
 from umbra.contracts.summary import SummaryOutput
 from umbra.management import design_systems, memory, taste
+from umbra.routines import parts as pt
 from umbra.unified import config as cfg
 from umbra.unified import project as proj
 from umbra.unified.events import add_event
+from umbra.unified.explain import task_title
 from umbra.unified.store import new_id, now, to_cost
 
 TERMINAL = ("BLOCKED", "FAILED", "CANCELLED", "SUCCEEDED")
@@ -110,17 +112,14 @@ def for_run(root: Path, udir: Path, conn: sqlite3.Connection, project: dict, run
     return Engine(root, udir, conn, project, space=space, **kw)
 
 
-def root_repo(engine: "Engine") -> str:
-    """Nombre del repo del espacio sobre el que trabaja el engine ("" si es el espacio)."""
-    return engine.root.name if engine.root != engine.home else ""
-
-
 class Engine:
     def __init__(self, root: Path, udir: Path, conn: sqlite3.Connection, project: dict,
                  guard: Callable[[], bool] = lambda: True, origin: str = "worker",
                  space: tuple[Path, dict] | None = None):
         self.root, self.udir, self.conn, self.project = root, udir, conn, project
         self.guard, self.origin = guard, origin
+        if space is None and proj.repo_names(project):  # creado sobre el espacio mismo
+            space = (root, project)
         self.space = space  # (raíz, configuración) del espacio de trabajo, si lo hay
         self.home = space[0] if space else root  # donde viven las specs
         self.label = (f"{self.home.name} · {root.name}" if space and root != self.home
@@ -130,13 +129,8 @@ class Engine:
     def run_row(self, run_id: str) -> sqlite3.Row:
         return self.conn.execute(
             "SELECT r.*, t.number, t.title, t.description, t.acceptance, t.scope,"
-            " t.spec_dir, t.allowed_paths FROM run r"
+            " t.spec_dir, t.allowed_paths, t.repos FROM run r"
             " JOIN task t ON t.id = r.task_id WHERE r.id = ?", (run_id,)).fetchone()
-
-    def base_branch(self, run) -> str:
-        """Rama base de esta ejecución: la de la spec si la tarea tiene una; si no, la del
-        proyecto."""
-        return run["base_branch"] or self.project_base()
 
     def project_base(self) -> str:
         return self.project.get("project", {}).get("base_branch", "main")
@@ -176,8 +170,8 @@ class Engine:
                        for i, o in enumerate(details.get("options", []), 1)])
             for caption, images in albums:
                 telegram.send_photos(tg, [wt / p for p in images], caption)
-        if self.space and root_repo(self):  # el repo, en el texto; el espacio, en los botones
-            run = dict(run) | {"title": f"{root_repo(self)} · {run['title']}"}
+        if self.space:  # el repo (o los repos), en el texto; el espacio, en los botones
+            run = dict(run) | {"title": task_title(run)}
         if mid := telegram.notify_run(self.project, run, type_, payload,
                                       self.home.name):  # al teléfono, siempre
             add_event(self.conn, run_id, "telegram.sent", self.origin, message_id=mid)
@@ -223,6 +217,58 @@ class Engine:
             " status = excluded.status, external_ref = excluded.external_ref,"
             " updated_at = excluded.updated_at", (key, kind, status, ref, now()))
 
+    # ---------- partes: lo de la ejecución en cada repo (spec 033) ----------
+    def parts(self, run) -> list[pt.Part]:
+        return pt.of(self, run)
+
+    def part_base(self, run, part: pt.Part) -> str:
+        """Rama base de la parte: la de la spec si la tarea tiene una; si no, la del repo."""
+        return run["base_branch"] or part.base_branch
+
+    def heads(self, ps: list[pt.Part]) -> dict[str, str]:
+        return {p.repo: git.head(p.wt) for p in ps}
+
+    def save_heads(self, run_id: str, heads: dict[str, str]) -> str:
+        for repo, sha in heads.items():
+            if repo:
+                self.conn.execute("UPDATE run_part SET head_sha = ? WHERE run_id = ? AND"
+                                  " repo = ?", (sha, run_id, repo))
+        head = pt.fingerprint(heads)
+        self.set_run(run_id, head_sha=head)
+        return head
+
+    def set_base(self, run_id: str, part: pt.Part, sha: str) -> None:
+        if not part.repo:
+            self.set_run(run_id, base_sha=sha)
+            return
+        self.conn.execute("UPDATE run_part SET base_sha = ? WHERE run_id = ? AND repo = ?",
+                          (sha, run_id, part.repo))
+        bases = {p.repo: p.base_sha for p in self.parts(self.run_row(run_id))}
+        self.set_run(run_id, base_sha=pt.fingerprint(bases))
+
+    def touched(self, run_id: str, wt: Path) -> bool:
+        """¿Hay cambios sin confirmar en algún repo de la tarea (o fuera de ellos)?"""
+        ps = self.parts(self.run_row(run_id))
+        return any(git.has_changes(p.wt) for p in ps) or (
+            len(ps) > 1 and bool(pt.strays(wt, ps)))
+
+    def policy_violations(self, run) -> list:
+        """La política de cada repo sobre su parte del cambio (rutas con el repo delante)."""
+        out = []
+        allowed = json.loads(run["allowed_paths"] or "[]")
+        for p in self.parts(run):
+            changes = git.changed_files(p.wt, p.base_sha)
+            edits = {f: git.edit_summary(p.wt, p.base_sha, "HEAD", f)
+                     for s, f in changes if s[0] == "M" and policy.is_test_file(f)}
+            for v in policy.check_diff(
+                    changes, p.config.get("policy", {}).get("protected_paths",
+                                                            policy.DEFAULT_PROTECTED),
+                    edits, [a for a in map(p.own, allowed) if a]):
+                if p.repo:
+                    v = policy.Violation(v.code, p.show(v.path), f"{p.repo}: {v.message}")
+                out.append(v)
+        return out
+
     def profile(self, name: str) -> Profile:
         """Perfil con acciones efectivas = perfil ∩ política del proyecto."""
         prof = cfg.load_profile(self.udir, name)
@@ -241,18 +287,22 @@ class Engine:
             if not self.transition(run_id, "RUNNING", ("QUEUED",)):
                 return self.run_row(run_id)["status"]
             self.event(run_id, "run.started", routine=routine.name)
-        wt = worktree.ensure(self.root, self.udir, run_id, run["branch"], run["base_sha"])
+        if pt.is_multi(self.conn, run_id):  # entre repos: un worktree de cada uno
+            wt = pt.ensure(self, run)
+        else:
+            wt = worktree.ensure(self.root, self.udir, run_id, run["branch"], run["base_sha"])
         if run["worktree"] != wt.as_posix():
             self.set_run(run_id, worktree=wt.as_posix())
         src = self.home / run["spec_dir"] if run["spec_dir"] else None
         if src and src.is_dir() and not src.is_symlink():
             # enlaces simbólicos omitidos (podrían apuntar fuera del repo); se copia lo que
             # falte aunque la carpeta ya exista, sin pisar lo del worktree
-            shutil.copytree(src, wt / run["spec_dir"], dirs_exist_ok=True,
-                            ignore=lambda d, names: [
-                                n for n in names if (Path(d) / n).is_symlink()],
-                            copy_function=lambda s, d: None if Path(d).exists()
-                            else shutil.copy2(s, d))
+            for p in self.parts(self.run_row(run_id)):
+                shutil.copytree(src, p.wt / run["spec_dir"], dirs_exist_ok=True,
+                                ignore=lambda d, names: [
+                                    n for n in names if (Path(d) / n).is_symlink()],
+                                copy_function=lambda s, d: None if Path(d).exists()
+                                else shutil.copy2(s, d))
 
         names = [s.name for s in routine.stages]
         i = names.index(run["stage"]) if run["stage"] in names else 0
@@ -333,6 +383,10 @@ class Engine:
         plan = self.last_event(run_id, "plan.ready")
         if not (plan and json.loads(plan["payload"]).get("needs_design")):
             self.event(run_id, "design.skipped", reason="la tarea no toca la interfaz")
+            return Outcome("next")
+        if pt.is_multi(self.conn, run_id):  # ponytail: design/ es de un repo; aún no aquí
+            self.event(run_id, "design.skipped",
+                       reason="tarea entre repos: el diseño se hace en una tarea del front")
             return Outcome("next")
         try:
             profile = self.profile(stage.profile or "designer")
@@ -498,9 +552,11 @@ class Engine:
     # ---------- BUILD ----------
     def build(self, run_id: str, stage: Stage, wt: Path) -> Outcome:
         self.interrupt_stale(run_id, "build")
-        if "test" not in commands.registered(self.project):
-            return Outcome("BLOCKED", "no hay comando 'test' registrado en .umbra/project.toml",
-                           "no_test_command")
+        if missing := [p.repo for p in self.parts(self.run_row(run_id))
+                       if "test" not in commands.registered(p.config)]:
+            where = f" de {', '.join(missing)}" if any(missing) else ""
+            return Outcome("BLOCKED", "no hay comando 'test' registrado en .umbra/project.toml"
+                           + where, "no_test_command")
         done = self.attempts_since(run_id, "build",
                                    self.since(run_id, "run.retried", "stage.rework",
                                               "stage.escalated"))
@@ -538,38 +594,44 @@ class Engine:
                 return Outcome("BLOCKED", "el agente necesita aclaraciones: "
                                + "; ".join(result.output.questions), "agent_questions",
                                {"stage": "build", "questions": result.output.questions})
-            if conflicts := git.files_with_conflict_markers(wt, git.unmerged_files(wt)):
+            ps = self.parts(run)
+            if conflicts := [p.show(f) for p in ps for f in git.files_with_conflict_markers(
+                    p.wt, git.unmerged_files(p.wt))]:
                 self.finish_attempt(attempt_id, "conflicts")
                 feedback = [conflict_feedback(conflicts, still=True)]
                 continue
-            if git.has_changes(wt):
-                git.commit_all(wt, f"umbra: {run['title']} (intento {attempt_id[:8]})")
-            head = git.head(wt)
+            if len(ps) > 1 and (strays := pt.strays(wt, ps)):  # fuera de los repos: se borra
+                self.event(run_id, "out_of_scope", attempt=attempt_id, files=strays)
+            for p in ps:
+                if git.has_changes(p.wt):
+                    git.commit_all(p.wt, f"umbra: {run['title']} (intento {attempt_id[:8]})")
+            heads = self.heads(ps)
+            head = pt.fingerprint(heads)
             if head == run["base_sha"]:
                 self.finish_attempt(attempt_id, "no_changes")
                 return Outcome("BLOCKED", "el agente no produjo cambios", "no_changes")
-            changes = git.changed_files(wt, run["base_sha"])
-            edits = {p: git.edit_summary(wt, run["base_sha"], head, p)
-                     for s, p in changes if s[0] == "M" and policy.is_test_file(p)}
-            violations = policy.check_diff(
-                changes,
-                self.project.get("policy", {}).get("protected_paths", policy.DEFAULT_PROTECTED),
-                edits, json.loads(run["allowed_paths"] or "[]"))
-            if violations:
+            if violations := self.policy_violations(run):
                 self.finish_attempt(attempt_id, "policy_violation")
                 return Outcome("BLOCKED", "política: " + "; ".join(v.message for v in violations),
                                "policy", {"violations": [v.as_dict() for v in violations]})
-            test = commands.run_registered(self.conn, self.project, "test", wt, self.udir,
-                                           run_id, attempt_id, tested_sha=head)
-            self.event(run_id, "evidence.tests", attempt=attempt_id, sha=head,
-                       exit_code=test["exit_code"], command=test["command"])
-            if test["exit_code"] == 0:
+            failed = []
+            for p in ps:  # los tests de cada repo; la etapa pasa solo si pasan todos
+                test = commands.run_registered(self.conn, p.config, "test", p.wt, self.udir,
+                                               run_id, attempt_id, tested_sha=heads[p.repo])
+                self.event(run_id, "evidence.tests", attempt=attempt_id, sha=heads[p.repo],
+                           exit_code=test["exit_code"], command=test["command"],
+                           **({"repo": p.repo} if p.repo else {}))
+                if test["exit_code"] != 0:
+                    failed.append((p, test))
+            if not failed:
                 self.finish_attempt(attempt_id, "done")
-                self.set_run(run_id, head_sha=head)
+                self.save_heads(run_id, heads)
                 return Outcome("next")
             self.finish_attempt(attempt_id, "tests_failed")
-            feedback = [f"El comando `{test['command']}` terminó con exit code "
-                        f"{test['exit_code']}:\n{test['output'][-FEEDBACK_CHARS:]}"]
+            p, test = failed[0]
+            feedback = [f"{f'En {q.repo}: ' if q.repo else ''}El comando `{t['command']}` terminó"
+                        f" con exit code {t['exit_code']}:\n{t['output'][-FEEDBACK_CHARS:]}"
+                        for q, t in failed]
             if attempt > stage.max_fix_cycles and level + 1 < len(levels):
                 # se agotaron los ciclos con este perfil: sube al siguiente, más fuerte
                 level += 1
@@ -586,6 +648,8 @@ class Engine:
         if test:
             details |= {"command": test["command"], "exit_code": test["exit_code"],
                         "output": test["output"][-1500:]}
+            if p.repo:
+                details["repo"] = p.repo
         return Outcome("BLOCKED", f"los tests siguen fallando tras {attempts} intentos",
                        "tests_failing", details)
 
@@ -600,15 +664,22 @@ class Engine:
         """Trae a la rama de la tarea lo integrado en la base desde que empezó.
 
         Devuelve retroalimentación para el agente si hay conflictos que resolver."""
+        out = []
+        for p in self.parts(self.run_row(run_id)):
+            out += self.sync_part(run_id, p)
+        return out
+
+    def sync_part(self, run_id: str, p: pt.Part) -> list[str]:
+        wt = p.wt
         pending = git.unmerged_files(wt)  # un intento anterior quedó a mitad de resolver
         if pending:
-            return [conflict_feedback(pending)]
+            return [conflict_feedback([p.show(f) for f in pending])]
         run = self.run_row(run_id)
-        target = git.remote_base(wt, self.base_branch(run))
-        if not target or target == run["base_sha"] or git.is_ancestor(wt, target):
+        target = git.remote_base(wt, self.part_base(run, p))
+        if not target or target == p.base_sha or git.is_ancestor(wt, target):
             return []
-        conflicts = git.merge(wt, target)
-        self.set_run(run_id, base_sha=target)  # políticas y diffs se miden contra la base nueva
+        conflicts = [p.show(f) for f in git.merge(wt, target)]
+        self.set_base(run_id, p, target)  # políticas y diffs se miden contra la base nueva
         if not conflicts:
             self.event(run_id, "base.synced", sha=target)
             return [f"La rama base avanzó y se fusionó en tu rama sin conflictos (commit "
@@ -693,15 +764,12 @@ class Engine:
         run = self.run_row(run_id)
         previous = [f for r in self.finding_rounds(run_id) if r.stage == stage.name
                     for f in r.findings]
-        dev = None
+        devs = []
         if stage.name == "verify" and "browse" in profile.actions:
-            try:  # la app de desarrollo, levantada sobre el workspace, para verla en el navegador
-                dev = commands.start_background(self.project, "dev", wt, self.udir)
-            except commands.NotReady as e:
-                return Outcome("BLOCKED", str(e), "dev_not_ready")
-            if dev:
-                self.event(run_id, "dev.started", url=dev["url"], command=dev["command"])
-        app_url = dev["url"] if dev else None
+            # la app de desarrollo, levantada sobre el workspace, para verla en el navegador
+            if blocked := self.start_devs(run_id, run, devs):
+                return blocked
+        app_url = self.app_url(devs)
         try:
             attempt_id, result = self.agent_attempt(run, stage.name, profile, wt,
                                                     feedback=self.decided_feedback(run_id),
@@ -715,16 +783,47 @@ class Engine:
                                                         feedback=self.decided_feedback(run_id),
                                                         previous=previous, app_url=app_url)
         finally:
-            if dev:
-                commands.stop_background(dev)
-                self.event(run_id, "dev.stopped", url=dev["url"])
+            self.stop_devs(run_id, devs)
         if not result.ok:
             return agent_failure(result)
-        if git.has_changes(wt):  # una etapa de solo lectura no puede tocar el workspace
+        if self.touched(run_id, wt):  # una etapa de solo lectura no puede tocar el workspace
             self.finish_attempt(attempt_id, "policy_violation")
             return Outcome("BLOCKED", f"{stage.name} modificó el workspace", "readonly_modified",
                            {"stage": stage.name, "agent": profile.agent})
         return self.judge(run_id, stage, attempt_id, result.output.findings, wt)
+
+    def start_devs(self, run_id: str, run, devs: list) -> Outcome | None:
+        """El `dev` de cada repo de la tarea, en el orden del espacio; cada uno recibe las URLs
+        de los ya levantados (`UMBRA_URL_<REPO>`): el front apunta al back de la tarea."""
+        env: dict[str, str] = {}
+        for p in self.parts(run):
+            try:
+                dev = commands.start_background(p.config, "dev", p.wt, self.udir, env=env)
+            except commands.NotReady as e:
+                self.stop_devs(run_id, devs)
+                return Outcome("BLOCKED", f"{p.repo}: {e}" if p.repo else str(e),
+                               "dev_not_ready", {"repo": p.repo} if p.repo else {})
+            if not dev:
+                continue
+            devs.append((p.repo, dev))
+            self.event(run_id, "dev.started", url=dev["url"], command=dev["command"],
+                       **({"repo": p.repo} if p.repo else {}))
+            if p.repo:
+                env[f"UMBRA_URL_{re.sub(r'[^A-Z0-9]', '_', p.repo.upper())}"] = dev["url"]
+        return None
+
+    def app_url(self, devs: list) -> str | None:
+        """La URL que abre el navegador: la de `[workspace] app` o la del último levantado."""
+        if not devs:
+            return None
+        want = (self.space[1] if self.space else {}).get("workspace", {}).get("app")
+        return next((d["url"] for repo, d in devs if repo == want), devs[-1][1]["url"])
+
+    def stop_devs(self, run_id: str, devs: list) -> None:
+        while devs:
+            _, dev = devs.pop()
+            commands.stop_background(dev)
+            self.event(run_id, "dev.stopped", url=dev["url"])
 
     # ---------- SCAN (determinista, sin agente) ----------
     def scan(self, run_id: str, stage: Stage, wt: Path) -> Outcome:
@@ -738,19 +837,22 @@ class Engine:
             "INSERT INTO attempt (id, run_id, stage, attempt_no, profile, agent, status,"
             " started_at) VALUES (?, ?, 'scan', ?, 'scan', 'umbra', 'running', ?)",
             (attempt_id, run_id, attempt_no, now()))
-        head = run["head_sha"]
-        findings = secrets.scan_diff(git.run(wt, "diff", f"{run['base_sha']}..{head}"))
+        ps = self.parts(run)
+        findings = secrets.scan_diff(pt.diff(ps))
         found_secrets = list(findings)
-        for name in self.project.get("scan", {}).get("commands", []):
-            res = commands.run_registered(self.conn, self.project, name, wt, self.udir,
-                                          run_id, attempt_id, tested_sha=head)
-            self.event(run_id, "evidence.scan", command=res["command"],
-                       exit_code=res["exit_code"], sha=head)
-            if res["exit_code"] != 0:
-                findings.append(Finding(
-                    severity="high", rule=f"sast:{name}",
-                    message=f"`{res['command']}` terminó con exit {res['exit_code']}:\n"
-                            f"{res['output'][-FEEDBACK_CHARS:]}"))
+        for p in ps:
+            for name in p.config.get("scan", {}).get("commands", []):
+                res = commands.run_registered(self.conn, p.config, name, p.wt, self.udir,
+                                              run_id, attempt_id, tested_sha=p.head_sha)
+                self.event(run_id, "evidence.scan", command=res["command"],
+                           exit_code=res["exit_code"], sha=p.head_sha,
+                           **({"repo": p.repo} if p.repo else {}))
+                if res["exit_code"] != 0:
+                    where = f"{p.repo}: " if p.repo else ""
+                    findings.append(Finding(
+                        severity="high", rule=f"sast:{name}",
+                        message=f"{where}`{res['command']}` terminó con exit {res['exit_code']}:"
+                                f"\n{res['output'][-FEEDBACK_CHARS:]}"))
         if found_secrets:  # un secreto confirmado bloquea siempre: sin retrabajo ni excepción
             self.record_findings(attempt_id, findings)
             self.finish_attempt(attempt_id, "secrets")
@@ -819,7 +921,7 @@ class Engine:
                       "devuelve solo esos en `findings` (vacío si ninguno lo es)."])
         if not result.ok:
             return agent_failure(result)
-        if git.has_changes(wt):
+        if self.touched(run["id"], wt):
             self.finish_attempt(attempt_id, "policy_violation")
             return Outcome("BLOCKED", "el árbitro modificó el workspace", "readonly_modified",
                            {"stage": "arbiter", "agent": profile.agent})
@@ -852,10 +954,12 @@ class Engine:
         self.event(run["id"], "attempt.started", stage=stage, attempt=attempt_id,
                    profile=profile.name, agent=profile.agent, n=attempt_no)
         plan = self.last_event(run["id"], "plan.ready")
+        ps = self.parts(run)
         if diff is None and stage in ("review", "verify", "arbiter") and run["head_sha"]:
-            diff = git.run(wt, "diff", f"{run['base_sha']}..{run['head_sha']}")[:DIFF_CHARS]
+            diff = pt.diff(ps)[:DIFF_CHARS]
         envelope = Envelope(
-            run_id=run["id"], stage=stage, attempt_id=attempt_id, input_sha=git.head(wt),
+            run_id=run["id"], stage=stage, attempt_id=attempt_id,
+            input_sha=pt.fingerprint(self.heads(ps)),
             task=TaskInfo(number=run["number"], title=run["title"],
                           description=run["description"],
                           acceptance=json.loads(run["acceptance"]),
@@ -863,7 +967,7 @@ class Engine:
             plan=json.loads(plan["payload"])["plan"] if plan and stage in ("build", "summary")
             else None,
             diff=diff, feedback=feedback or [], findings=previous or [],
-            project_notes=memory.project_notes(self.root, self.udir), app_url=app_url,
+            project_notes=self.notes(ps), app_url=app_url,
             design=design if design is not None else
             self.approved_design(run["id"]) if stage in ("build", "verify") else [])
         if stage in ("design", "critic"):  # tus guías de diseño y tu gusto
@@ -874,8 +978,9 @@ class Engine:
             shots = self.udir / "artifacts" / f"{attempt_id}-shots"
             shots.mkdir(parents=True, exist_ok=True)
             envelope.screenshots_dir = shots.as_posix()
-        allowed = [c["run"] for c in commands.registered(self.project).values()
-                   if not c.get("background")]  # los servidores los levanta umbra, no el agente
+        allowed = list(dict.fromkeys(  # los servidores los levanta umbra, no el agente
+            c["run"] for p in ps for c in commands.registered(p.config).values()
+            if not c.get("background")))
         req = AgentRun(envelope, profile, wt,
                        self.udir / "artifacts" / f"{attempt_id}-{stage}.jsonl", allowed,
                        output_model=output_model)
@@ -898,6 +1003,21 @@ class Engine:
                    summary=result.output.summary if result.output else None)
         return attempt_id, result
 
+    def notes(self, ps: list[pt.Part]) -> str | None:
+        """Lo que todo agente recibe del proyecto; en una tarea entre repos, de cada repo, con
+        la indicación de en qué carpeta está cada uno."""
+        if len(ps) == 1:
+            return memory.project_notes(ps[0].root, self.udir)
+        stacks = ", ".join(f"`{p.repo}/` ({p.config.get('project', {}).get('stack', '?')})"
+                           for p in ps)
+        blocks = [f"# Tarea entre repos\n\nTrabajas en una carpeta con un repo git por "
+                  f"subcarpeta: {stacks}. Cada cambio va dentro del repo que corresponde; nada "
+                  "fuera de ellos. Los tests de cada repo deben pasar."]
+        for p in ps:
+            if text := memory.project_notes(p.root, self.udir):
+                blocks.append(f"# Repo `{p.repo}`\n\n{text}")
+        return "\n\n".join(blocks)
+
     def record_screenshots(self, run, attempt_id: str, shots: Path) -> None:
         """Cada captura del navegador es evidencia ligada al SHA verificado."""
         files = sorted(f for f in shots.iterdir() if f.is_file())
@@ -918,63 +1038,107 @@ class Engine:
     # ---------- SHIP ----------
     def ship(self, run_id: str, wt: Path) -> Outcome:
         run = self.run_row(run_id)
-        head = git.head(wt)
+        ps = self.parts(run)
+        heads = self.heads(ps)
+        head = pt.fingerprint(heads)
         if head != run["head_sha"]:
             return Outcome("BLOCKED", "el SHA actual no es el evaluado; reintenta desde build",
                            "stale_sha")
-        base = self.base_branch(run)
         self.summarize(run_id, wt)
-
-        push_key = f"{run_id}:push:{head}"
-        if not self.operation(push_key):
-            self.ensure_lease()
-            if git.remote_branch_sha(wt, run["branch"]) != head:
-                git.push(wt, run["branch"])
-            self.record_operation(push_key, "push", "done", head)
-            self.event(run_id, "git.pushed", branch=run["branch"], sha=head)
+        multi = len(ps) > 1
+        # entre repos, solo los repos que cambiaron llevan rama y PR
+        shipped = [p for p in ps if not multi or heads[p.repo] != p.base_sha]
+        for p in shipped:
+            sha = heads[p.repo]
+            push_key = f"{run_id}:push:{p.repo}:{sha}" if p.repo else f"{run_id}:push:{sha}"
+            if not self.operation(push_key):
+                self.ensure_lease()
+                if git.remote_branch_sha(p.wt, run["branch"]) != sha:
+                    git.push(p.wt, run["branch"])
+                self.record_operation(push_key, "push", "done", sha)
+                self.event(run_id, "git.pushed", branch=run["branch"], sha=sha,
+                           **({"repo": p.repo} if p.repo else {}))
 
         pr_key = f"{run_id}:pr"
         if not self.operation(pr_key):
             self.ensure_lease()
-            pr = gh.find_pr(wt, run["branch"]) or gh.create_pr(
-                wt, run["branch"], base, f"umbra #{run['number']}: {run['title']}",
-                self.pr_body(run))
+            title = f"umbra #{run['number']}: {run['title']}"
+            prs = [{"repo": p.repo, **(gh.find_pr(p.wt, run["branch"]) or gh.create_pr(
+                p.wt, run["branch"], self.part_base(run, p), title, self.pr_body(run)))}
+                for p in shipped]
+            if multi:
+                self.link_prs(run, shipped, prs)
+                pr = {"number": prs[0]["number"], "url": prs[0]["url"], "repos": prs}
+            else:
+                pr = {k: v for k, v in prs[0].items() if k != "repo"}
             self.record_operation(pr_key, "pr", "done", json.dumps(pr))
-            self.event(run_id, "pr.opened", number=pr["number"], url=pr["url"])
+            self.event(run_id, "pr.opened", number=pr["number"], url=pr["url"],
+                       **({"repos": pr["repos"]} if multi else {}))
         self.set_run(run_id, stage="ship")
-        if base != self.project_base():  # rama de spec: se integra sola (constitution VII)
-            return self.integrate_in_spec(run_id, wt, head, base)
+        if run["base_branch"]:  # rama de spec: se integra sola (constitution VII)
+            return self.integrate_in_spec(run_id, wt, head, run["base_branch"])
         if self.transition(run_id, "WAITING_APPROVAL"):
             self.event(run_id, "run.waiting_approval", sha=head)
         return Outcome("waiting")
 
+    def link_prs(self, run, shipped: list[pt.Part], prs: list[dict]) -> None:
+        """Cada PR de una tarea entre repos enlaza a los otros: se revisan y se aprueban juntos."""
+        links = " · ".join(f"{pr['repo']}: {pr['url']}" for pr in prs)
+        body = (f"**PRs de esta tarea** (se aprueban juntos y se integran en este orden): "
+                f"{links}\n\n{self.pr_body(run)}")
+        for p, pr in zip(shipped, prs, strict=True):
+            gh.edit_pr_body(p.wt, pr["number"], body)
+
+    def part_prs(self, run, info: dict | None) -> list[tuple[pt.Part, dict]]:
+        """(parte, PR) de cada repo con PR, en el orden del espacio."""
+        if not info:
+            return []
+        ps = self.parts(run)
+        if "repos" not in info:
+            return [(ps[0], info)]
+        by = {p.repo: p for p in ps}
+        return [(by[pr["repo"]], pr) for pr in info["repos"] if pr["repo"] in by]
+
+    def drop_workspace(self, run) -> None:
+        wt = Path(run["worktree"] or "")
+        ps = self.parts(run)
+        if len(ps) > 1:
+            pt.remove(ps, wt)
+        elif run["worktree"]:
+            worktree.remove(self.root, wt)
+
     def integrate_in_spec(self, run_id: str, wt: Path, head: str, base: str) -> Outcome:
         """Tareas de una spec: pasadas todas las etapas, el PR se integra en la rama de la spec
-        sin aprobación; la persona aprueba la spec completa al final."""
+        sin aprobación; la persona aprueba la spec completa al final. Entre repos, uno por repo."""
         run = self.run_row(run_id)
-        pr = self.pr_info(run_id)
-        merge_key = f"{run_id}:merge:{head}"
-        if not self.operation(merge_key):
-            self.ensure_lease()
-            current = gh.view_pr(wt, pr["number"])
-            if current["state"] != "MERGED":
-                try:
-                    gh.merge_pr(wt, pr["number"], head)
-                except gh.GhError as e:
-                    return Outcome("BLOCKED", f"no se pudo integrar en {base}: {e}",
-                                   "base_conflict", {"pr": pr["number"], "url": pr["url"]})
-            final = gh.view_pr(wt, pr["number"])
-            merge_sha = (final.get("mergeCommit") or {}).get("oid")
-            if final["state"] != "MERGED" or not merge_sha:
-                return Outcome("FAILED", f"el proveedor no confirma el merge en {base}",
-                               "merge_unconfirmed")
-            self.record_operation(merge_key, "merge", "done", merge_sha)
+        info = self.pr_info(run_id)
+        merge_sha = None
+        for p, pr in self.part_prs(run, info):
+            merge_key = (f"{run_id}:merge:{p.repo}:{p.head_sha}" if p.repo
+                         else f"{run_id}:merge:{head}")
+            if not self.operation(merge_key):
+                self.ensure_lease()
+                current = gh.view_pr(p.wt, pr["number"])
+                if current["state"] != "MERGED":
+                    try:
+                        gh.merge_pr(p.wt, pr["number"], p.head_sha)
+                    except gh.GhError as e:
+                        where = f" ({p.repo})" if p.repo else ""
+                        return Outcome("BLOCKED", f"no se pudo integrar en {base}{where}: {e}",
+                                       "base_conflict", {"pr": pr["number"], "url": pr["url"]})
+                final = gh.view_pr(p.wt, pr["number"])
+                sha = (final.get("mergeCommit") or {}).get("oid")
+                if final["state"] != "MERGED" or not sha:
+                    return Outcome("FAILED", f"el proveedor no confirma el merge en {base}",
+                                   "merge_unconfirmed")
+                self.record_operation(merge_key, "merge", "done", sha)
+            merge_sha = self.operation(merge_key)["external_ref"]
         if self.transition(run_id, "SUCCEEDED"):
             self.conn.execute("UPDATE task SET status = 'done', updated_at = ? WHERE id = ?",
                               (now(), run["task_id"]))
-            self.event(run_id, "run.integrated", branch=base, pr=pr["number"],
-                       merge_sha=self.operation(merge_key)["external_ref"])
-            worktree.remove(self.root, wt)
+            self.event(run_id, "run.integrated", branch=base, pr=info["number"],
+                       merge_sha=merge_sha)
+            self.drop_workspace(run)
             self.spec_ready(run["spec_dir"], base)
         return Outcome("waiting")
 
@@ -989,13 +1153,13 @@ class Engine:
         self.ensure_lease()
         title, body = f"umbra spec {Path(spec_dir).name}", self.spec_pr_body(spec_dir)
         if self.space:  # un PR de spec por repo que tuvo tareas, en el orden del espacio
-            parts = []
+            prs = []
             for name, root in self.spec_repos(spec_dir).items():
                 base = proj.repo_config(self.space[1], root).get("project", {}).get(
                     "base_branch", "main")
                 found = gh.find_pr(root, branch) or gh.create_pr(root, branch, base, title, body)
-                parts.append({"repo": name, **found})
-            pr = {"number": parts[0]["number"], "url": parts[0]["url"], "repos": parts}
+                prs.append({"repo": name, **found})
+            pr = {"number": prs[0]["number"], "url": prs[0]["url"], "repos": prs}
         else:
             pr = gh.find_pr(self.root, branch) or gh.create_pr(
                 self.root, branch, self.project_base(), title, body)
@@ -1047,8 +1211,7 @@ class Engine:
         try:
             attempt_id, result = self.agent_attempt(
                 run, "summary", self.profile("summarizer"), wt, feedback=told, previous=fixed,
-                output_model=SummaryOutput,
-                diff=git.diff_stat(wt, run["base_sha"], run["head_sha"]))
+                output_model=SummaryOutput, diff=pt.diff_stat(self.parts(run)))
         except Exception as e:  # ponytail: sin resumen la vista usa los datos exactos
             self.conn.execute("UPDATE attempt SET status = 'error', ended_at = ? WHERE run_id = ?"
                               " AND stage = 'summary' AND status = 'running'", (now(), run_id))
@@ -1096,46 +1259,78 @@ def approve(engine: Engine, run_id: str, actor: str) -> dict:
     run = engine.run_row(run_id)
     if run["status"] != "WAITING_APPROVAL":
         raise ApprovalError(f"la ejecución está en {run['status']}, no en WAITING_APPROVAL")
-    pr = engine.pr_info(run_id)
-    wt = Path(run["worktree"])
-    current = gh.view_pr(wt, pr["number"])
-    local = git.head(wt) if wt.exists() else run["head_sha"]
-    if current["headRefOid"] != run["head_sha"] or local != run["head_sha"]:
-        raise ApprovalError("hay commits posteriores al SHA evaluado; vuelve a verificar con "
-                            f"`umbra retry {run['number']}`")
-    if current["state"] != "MERGED":
-        mergeable = current.get("mergeable")
+    info = engine.pr_info(run_id)
+    pairs = engine.part_prs(run, info)  # entre repos, uno por repo y en el orden del espacio
+
+    def cwd(p):
+        return p.wt if p.wt.exists() else p.root
+
+    views = {}
+    for p, pr in pairs:  # una aprobación vale solo para exactamente lo que se evaluó
+        current = gh.view_pr(cwd(p), pr["number"])
+        local = git.head(p.wt) if p.wt.exists() else p.head_sha
+        if current["headRefOid"] != p.head_sha or local != p.head_sha:
+            raise ApprovalError("hay commits posteriores al SHA evaluado; vuelve a verificar con "
+                                f"`umbra retry {run['number']}`")
+        views[p.repo] = current
+    for p, pr in pairs:
+        if views[p.repo]["state"] == "MERGED":
+            continue
+        mergeable = views[p.repo].get("mergeable")
         for _ in range(MERGEABLE_POLLS):  # GitHub lo calcula en diferido tras cada cambio
             if mergeable not in (None, "UNKNOWN"):
                 break
             time.sleep(MERGEABLE_WAIT_S)
-            mergeable = gh.view_pr(wt, pr["number"]).get("mergeable")
+            mergeable = gh.view_pr(cwd(p), pr["number"]).get("mergeable")
         if mergeable == "CONFLICTING":
             raise base_conflict(engine, run, pr)
     engine.conn.execute(
         "INSERT OR IGNORE INTO approval (id, run_id, head_sha, decision, actor, created_at)"
         " VALUES (?, ?, ?, 'approved', ?, ?)", (new_id(), run_id, run["head_sha"], actor, now()))
     engine.event(run_id, "approval.approved", sha=run["head_sha"], actor=actor)
-    merge_key = f"{run_id}:merge:{run['head_sha']}"
-    if current["state"] != "MERGED" and not engine.operation(merge_key):
+    merged, merge_sha = [], None
+    for p, pr in pairs:
+        merge_key = (f"{run_id}:merge:{p.repo}:{p.head_sha}" if p.repo
+                     else f"{run_id}:merge:{run['head_sha']}")
+        done = engine.operation(merge_key)
+        if done and done["status"] == "done":  # ya integrado en un intento anterior
+            merged.append(p)
+            merge_sha = done["external_ref"]
+            continue
         try:
-            gh.merge_pr(wt, pr["number"], run["head_sha"])
-        except gh.GhError as e:
-            if re.search(r"conflict|not mergeable", str(e), re.IGNORECASE):
-                raise base_conflict(engine, run, pr) from e
-            raise
-        engine.record_operation(merge_key, "merge", "requested", str(pr["number"]))
-    final = gh.view_pr(wt, pr["number"])
-    merge_sha = (final.get("mergeCommit") or {}).get("oid")
-    if final["state"] != "MERGED" or not merge_sha:
-        raise ApprovalError(f"el proveedor no confirma el merge (estado {final['state']})")
-    engine.record_operation(merge_key, "merge", "done", merge_sha)
+            if views[p.repo]["state"] != "MERGED" and not done:
+                try:
+                    gh.merge_pr(cwd(p), pr["number"], p.head_sha)
+                except gh.GhError as e:
+                    if not merged and re.search(r"conflict|not mergeable", str(e),
+                                                re.IGNORECASE):
+                        raise base_conflict(engine, run, pr) from e
+                    raise
+                engine.record_operation(merge_key, "merge", "requested", str(pr["number"]))
+            final = gh.view_pr(cwd(p), pr["number"])
+            merge_sha = (final.get("mergeCommit") or {}).get("oid")
+            if final["state"] != "MERGED" or not merge_sha:
+                raise ApprovalError(f"el proveedor no confirma el merge (estado "
+                                    f"{final['state']})")
+        except (gh.GhError, ApprovalError) as e:
+            if not merged:
+                raise
+            names = ", ".join(q.repo for q in merged)
+            engine.event(run_id, "approval.partial", merged=[q.repo for q in merged],
+                         pending=p.repo, reason=str(e))
+            raise ApprovalError(f"integrado en {names}; falta {p.repo}: {e}. Cuando lo "
+                                "resuelvas, aprueba de nuevo: solo se integra lo que falta") from e
+        engine.record_operation(merge_key, "merge", "done", merge_sha)
+        merged.append(p)
     engine.set_run(run_id, status="SUCCEEDED")
     engine.conn.execute("UPDATE task SET status = 'done', updated_at = ? WHERE id = ?",
                         (now(), run["task_id"]))
-    engine.event(run_id, "run.succeeded", merge_sha=merge_sha, pr=pr["number"])
-    worktree.remove(engine.root, wt)
-    return {"run_id": run_id, "merge_sha": merge_sha, "pr": pr["url"]}
+    engine.event(run_id, "run.succeeded", merge_sha=merge_sha, pr=info["number"])
+    engine.drop_workspace(run)
+    out = {"run_id": run_id, "merge_sha": merge_sha, "pr": info["url"]}
+    if any(p.repo for p, _ in pairs):  # tu copia de la base de cada repo, al día
+        out["repos"] = [(p.root, p.config) for p, _ in pairs]
+    return out
 
 
 def base_conflict(engine: Engine, run, pr: dict) -> "ApprovalError":
@@ -1179,13 +1374,11 @@ def cancel(engine: Engine, run_id: str) -> str:
 
 def cleanup(engine: Engine, run_id: str, reason: str) -> None:
     run = engine.run_row(run_id)
-    pr = engine.pr_info(run_id)
-    if pr:
+    for p, pr in engine.part_prs(run, engine.pr_info(run_id)):
         try:
-            if gh.view_pr(engine.root, pr["number"])["state"] == "OPEN":
-                gh.close_pr(engine.root, pr["number"], reason)
+            if gh.view_pr(p.root, pr["number"])["state"] == "OPEN":
+                gh.close_pr(p.root, pr["number"], reason)
         except gh.GhError as e:
             engine.event(run_id, "cleanup.error", error=str(e))
-    if run["worktree"]:
-        worktree.remove(engine.root, Path(run["worktree"]))
+    engine.drop_workspace(run)
     engine.event(run_id, "run.cleaned")

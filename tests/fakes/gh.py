@@ -120,6 +120,9 @@ elif args[:2] == ["pr", "merge"]:
     if pr["headRefOid"] != opt("--match-head-commit"):
         print("head changed", file=sys.stderr)
         sys.exit(1)
+    if (fail := os.environ.get("FAKE_GH_MERGE_FAIL")) and fail in pr.get("repo", ""):
+        print("error: timeout", file=sys.stderr)
+        sys.exit(1)
     result = merge_tree(pr)
     if result.returncode != 0:
         print("Pull request is not mergeable: the merge commit cannot be cleanly created.",
@@ -141,6 +144,9 @@ elif args[:2] == ["repo", "create"]:  # repo privado «en GitHub»: un bare loca
     if "--push" in args:
         git("push", "-q", "-u", "origin", "HEAD")
     print(f"https://github.test/{args[2]}")
+elif args[:2] == ["pr", "edit"]:
+    state["prs"][int(args[2]) - 1]["body"] = opt("--body")
+    save()
 elif args[:2] == ["pr", "close"]:
     state["prs"][int(args[2]) - 1]["state"] = "CLOSED"
     save()

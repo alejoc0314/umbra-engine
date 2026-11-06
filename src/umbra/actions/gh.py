@@ -56,6 +56,10 @@ def merge_pr(cwd: Path, number: int, head_sha: str) -> None:
     _gh(cwd, "pr", "merge", str(number), "--squash", "--match-head-commit", head_sha)
 
 
+def edit_pr_body(cwd: Path, number: int, body: str) -> None:
+    _gh(cwd, "pr", "edit", str(number), "--body", body)
+
+
 def close_pr(cwd: Path, number: int, comment: str) -> None:
     _gh(cwd, "pr", "close", str(number), "--comment", comment)
 

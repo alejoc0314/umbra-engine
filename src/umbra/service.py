@@ -25,7 +25,8 @@ from umbra.contracts.plan import PlanOutput, ProposedTask
 from umbra.management import memory, planning, specfile
 from umbra.management.planning import pending_dependencies
 from umbra.routines import engine as eng
-from umbra.routines import worker
+from umbra.routines import parts, worker
+from umbra.routines.parts import fingerprint
 from umbra.unified import config as cfg
 from umbra.unified import explain as ex
 from umbra.unified import project
@@ -93,12 +94,20 @@ def member(ctx: Ctx, name: str) -> tuple[Path, dict]:
         raise OpError(str(e), 2) from e
 
 
+def run_parts(ctx: Ctx, run_row) -> list:
+    """Lo de la ejecución en cada repo (una parte si es de un solo repo)."""
+    e = engine(ctx, run_id=run_row["id"])
+    return e.parts(e.run_row(run_row["id"]))
+
+
 def run_diff(ctx: Ctx, run_row) -> tuple[str, str]:
-    """(numstat, patch) de una ejecución, en el repo de su tarea."""
-    task = ctx.conn.execute("SELECT * FROM task WHERE id = ?", (run_row["task_id"],)).fetchone()
-    root = repo_of(ctx, task)[0]
-    base, head = run_row["base_sha"], run_row["head_sha"]
-    return (git.run(root, "diff", "--numstat", base, head), git.run(root, "diff", base, head))
+    """(numstat, patch) de una ejecución, en el repo (o los repos) de su tarea."""
+    ps = run_parts(ctx, run_row)
+    return parts.numstat(ps), parts.diff(ps)
+
+
+def diff_stat(ctx: Ctx, run_row) -> str:
+    return parts.diff_stat(run_parts(ctx, run_row))
 
 
 def check_repos(ctx: Ctx, repos: list[str], what: str) -> None:
@@ -115,6 +124,16 @@ def check_repos(ctx: Ctx, repos: list[str], what: str) -> None:
     if bad := [r for r in repos if r not in members]:
         raise OpError(f"{what} nombra repos que no están en el espacio: {', '.join(bad)} "
                       f"(repos: {valid})", 2)
+
+
+def repo_targets(ctx: Ctx, task) -> dict[str, tuple[Path, dict]]:
+    """Los repos donde trabaja la tarea: {nombre: (raíz, configuración)}, en el orden del
+    espacio; en un proyecto de un repo (o una tarea de un solo repo), {"": ...}."""
+    repos = task_repos(task) if ctx.members else []
+    if len(repos) < 2:
+        return {"": repo_of(ctx, task)}
+    check_repos(ctx, repos, f"la tarea {task['number']}")
+    return {r: member(ctx, r) for r in ctx.members if r in repos}
 
 
 def repo_of(ctx: Ctx, task) -> tuple[Path, dict]:
@@ -393,16 +412,20 @@ def run(ctx: Ctx, numbers: list[int], routine: str | None = None, new: bool = Fa
     results = []
     for n in numbers:
         task = task_row(ctx, n)
-        root, config = repo_of(ctx, task)
-        _trust(root, config, trust_repo_config)
+        targets = repo_targets(ctx, task)  # {repo: (raíz, configuración)}; "" en un repo
+        for root, config in targets.values():
+            _trust(root, config, trust_repo_config)
+        config = next(iter(targets.values()))[1]
         routine = routine_name or config.get("project", {}).get("default_routine",
                                                                 DEFAULT_ROUTINE)
         try:
             cfg.load_routine(ctx.udir, routine)
         except cfg.ConfigError as e:
             raise OpError(str(e)) from e
-        base_branch = config.get("project", {}).get("base_branch", "main")
-        base_sha = _remote_base(root, base_branch)
+        bases = {r: (c.get("project", {}).get("base_branch", "main"),
+                     _remote_base(root, c.get("project", {}).get("base_branch", "main")))
+                 for r, (root, c) in targets.items()}
+        base_branch = next(iter(bases.values()))[0]
         if task["status"] != "accepted":
             raise OpError(f"la tarea {n} está en {task['status']}; solo se ejecutan tareas "
                           "aceptadas")
@@ -428,20 +451,26 @@ def run(ctx: Ctx, numbers: list[int], routine: str | None = None, new: bool = Fa
             eng.cancel(engine(ctx, origin, last["id"]), last["id"])  # cierra y limpia
         count = ctx.conn.execute("SELECT COUNT(*) FROM run WHERE task_id = ?",
                                  (task["id"],)).fetchone()[0]
-        branch, sha = spec_branch(ctx, task), base_sha
-        if branch:  # la tarea parte de (y se integra en) la rama de su spec
-            sha = git.remote_base(root, branch)
-            if sha is None:
-                git.run(root, "push", "-q", "origin", f"{base_sha}:refs/heads/{branch}")
-                sha = base_sha
+        branch, shas = spec_branch(ctx, task), {}
+        for r, (root, _) in targets.items():
+            sha = bases[r][1]
+            if branch:  # la tarea parte de (y se integra en) la rama de su spec
+                sha = git.remote_base(root, branch)
+                if sha is None:
+                    git.run(root, "push", "-q", "origin", f"{bases[r][1]}:refs/heads/{branch}")
+                    sha = bases[r][1]
+            shas[r] = sha
         run_id = new_id()
         ctx.conn.execute(
             "INSERT INTO run (id, task_id, routine, status, base_sha, base_branch, branch,"
             " idempotency_key, created_at, updated_at)"
             " VALUES (?, ?, ?, 'QUEUED', ?, ?, ?, ?, ?, ?)",
-            (run_id, task["id"], routine, sha, branch,
+            (run_id, task["id"], routine, fingerprint(shas), branch,
              f"{worktree.branch_name(n, task['title'])}-{run_id[:6]}",
              f"{task['id']}:{routine}:{count + 1}", now(), now()))
+        if len(targets) > 1:  # tarea entre repos (spec 033): una parte por repo
+            ctx.conn.executemany("INSERT INTO run_part (run_id, repo, base_sha) VALUES (?, ?, ?)",
+                                 [(run_id, r, s) for r, s in shas.items()])
         add_event(ctx.conn, run_id, "run.queued", origin, task=n, routine=routine,
                   base_branch=branch or base_branch)
         results.append({"task": n, "run_id": run_id, "status": "QUEUED", "created": True})
@@ -922,16 +951,21 @@ def resume_human(ctx: Ctx, number: int, message: str, foreground: bool = False,
     if not message:
         raise OpError("di en una línea qué arreglaste (-m)")
     run_row, wt = _workspace(ctx, number)
-    if "test" not in commands.registered(ctx.config):
-        raise OpError("no hay comando 'test' registrado en .umbra/project.toml")
-    if git.has_changes(wt):
-        git.commit_all(wt, f"humano: {message}")
-    head = git.head(wt)
     run_id = run_row["id"]
+    e = engine(ctx, origin, run_id)
+    ps = e.parts(e.run_row(run_id))  # en una tarea entre repos, cada repo
+    if any("test" not in commands.registered(p.config) for p in ps):
+        raise OpError("no hay comando 'test' registrado en .umbra/project.toml")
+    for p in ps:
+        if git.has_changes(p.wt):
+            git.commit_all(p.wt, f"humano: {message}")
+    heads = e.heads(ps)
+    head = fingerprint(heads)
     tested = ctx.conn.execute("SELECT tested_sha FROM artifact WHERE run_id = ? AND tested_sha"
                               " IS NOT NULL ORDER BY created_at DESC LIMIT 1", (run_id,)
                               ).fetchone()
-    if head == (tested[0] if tested else run_row["head_sha"] or run_row["base_sha"]):
+    last = tested[0] if tested and len(ps) == 1 else None
+    if head == (last or run_row["head_sha"] or run_row["base_sha"]):
         raise OpError("no hay cambios nuevos en el espacio de trabajo de la tarea")
     attempt_no = ctx.conn.execute(
         "SELECT COALESCE(MAX(attempt_no), 0) + 1 FROM attempt WHERE run_id = ? AND"
@@ -943,15 +977,19 @@ def resume_human(ctx: Ctx, number: int, message: str, foreground: bool = False,
         (attempt_id, run_id, attempt_no, now()))
     add_event(ctx.conn, run_id, "takeover.done", origin, actor=actor(), message=message,
               attempt=attempt_id, sha=head)
-    test = commands.run_registered(ctx.conn, ctx.config, "test", wt, ctx.udir, run_id,
-                                   attempt_id, tested_sha=head)
-    add_event(ctx.conn, run_id, "evidence.tests", origin, attempt=attempt_id, sha=head,
-              exit_code=test["exit_code"], command=test["command"])
-    ok = test["exit_code"] == 0
+    failed = None
+    for p in ps:
+        test = commands.run_registered(ctx.conn, p.config, "test", p.wt, ctx.udir, run_id,
+                                       attempt_id, tested_sha=heads[p.repo])
+        add_event(ctx.conn, run_id, "evidence.tests", origin, attempt=attempt_id,
+                  sha=heads[p.repo], exit_code=test["exit_code"], command=test["command"],
+                  **({"repo": p.repo} if p.repo else {}))
+        failed = failed or (test if test["exit_code"] != 0 else None)
+    ok = failed is None
+    test = failed or test
     ctx.conn.execute("UPDATE attempt SET status = ?, ended_at = ? WHERE id = ?",
                      ("done" if ok else "tests_failed", now(), attempt_id))
-    ctx.conn.execute("UPDATE run SET head_sha = ?, updated_at = ? WHERE id = ?",
-                     (head, now(), run_id))
+    e.save_heads(run_id, heads)
     if not ok:
         raise OpError(f"tu arreglo deja los tests en rojo (`{test['command']}` terminó con "
                       f"exit {test['exit_code']}); la tarea sigue detenida:\n"
@@ -988,12 +1026,11 @@ def evidence(ctx: Ctx, number: int) -> dict:
     }
     data["cost"] = str(sum((Decimal(a["cost"] or 0) for a in data["attempts"]), Decimal(0)))
     data["unpriced_tokens"] = sum(store_unpriced(a) for a in data["attempts"] if a["cost"])
-    wt = Path(run_row["worktree"] or "")
     data["diff_stat"] = ""
-    if run_row["worktree"] and wt.exists() and run_row["head_sha"]:
+    if run_row["worktree"] and Path(run_row["worktree"]).exists() and run_row["head_sha"]:
         try:
-            data["diff_stat"] = git.diff_stat(wt, run_row["base_sha"], run_row["head_sha"])
-        except git.GitError:
+            data["diff_stat"] = diff_stat(ctx, run_row)
+        except (git.GitError, OpError):
             pass
     pr = engine(ctx).pr_info(rid)
     data["pr"] = pr
@@ -1050,9 +1087,8 @@ def report(ctx: Ctx, number: int, data: dict) -> dict:
     changes = {"código": [0, 0, 0], "pruebas": [0, 0, 0], "documentación": [0, 0, 0]}
     if head and run_row["base_sha"]:
         try:
-            numstat = git.run(repo_of(ctx, task)[0], "diff", "--numstat",
-                              run_row["base_sha"], head)
-        except git.GitError:
+            numstat = parts.numstat(run_parts(ctx, run_row))
+        except (git.GitError, OpError):
             numstat = ""
         for line in numstat.splitlines():
             added, removed, path = line.split("\t", 2)
@@ -1079,7 +1115,8 @@ def report(ctx: Ctx, number: int, data: dict) -> dict:
         "design": len(eng_.approved_design(rid)),
         "cost": data["cost"], "unpriced_tokens": data["unpriced_tokens"],
         "minutes": minutes, "attempts": len(attempts),
-        "pr": (data.get("pr") or {}).get("url"),
+        "pr": " · ".join(f"{p['repo']}: {p['url']}" for p in (data.get("pr") or {})["repos"])
+        if "repos" in (data.get("pr") or {}) else (data.get("pr") or {}).get("url"),
     }
 
 
@@ -1275,9 +1312,9 @@ def approve_spec(ctx: Ctx, ref: str, origin: str = "cli") -> dict:
         raise OpError(f"la spec {spec_dir} ya está integrada (merge {pr['merge_sha'][:10]})")
     # en un espacio, un PR por repo, en el orden del espacio; cada uno con su clave: aprobar de
     # nuevo tras un fallo integra solo lo que faltaba
-    parts = pr.get("repos") or [{"repo": None, "number": pr["number"], "url": pr["url"]}]
+    prs = pr.get("repos") or [{"repo": None, "number": pr["number"], "url": pr["url"]}]
     merged, repos, merge_sha = [], [], None
-    for part in parts:
+    for part in prs:
         name = part["repo"]
         root, config = ((ctx.members[name], project.repo_config(ctx.config, ctx.members[name]))
                         if name else (ctx.root, ctx.config))
@@ -1315,7 +1352,7 @@ def approve_spec(ctx: Ctx, ref: str, origin: str = "cli") -> dict:
               merge_sha=merge_sha, actor=actor(), repos=merged)
     pulled = _pull(ctx, repos, origin)
     return {"spec_dir": spec_dir, "pr": pr["url"], "merge_sha": merge_sha, "pulled": pulled,
-            "repos": [{"repo": p["repo"], "url": p["url"]} for p in parts if p["repo"]]}
+            "repos": [{"repo": p["repo"], "url": p["url"]} for p in prs if p["repo"]]}
 
 
 def _operation(ctx: Ctx, key: str) -> str | None:
