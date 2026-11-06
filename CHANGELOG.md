@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.26.1 — 2026-11-05
+
 - Adoptar una carpeta con varios repos (`/adoptar` en Telegram) crea un espacio de trabajo en vez
   de convertir la carpeta padre en un repo que los envuelve.
 
