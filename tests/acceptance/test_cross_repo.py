@@ -211,3 +211,8 @@ def test_replicate_in_a_workspace_runs_on_the_front_with_the_back_up(ws, tmp_pat
     assert not (ws.root / "api" / "design").exists()
     assert (ws.state / "web-env.txt").read_text() == urls["api"]  # el back, levantado antes
     assert not port_open(urls["api"]) and not port_open(urls["web"])
+    call = ws.claude_calls()[-1]  # desde la carpeta padre: ve los dos repos
+    assert Path(call["cwd"]).resolve() == ws.root.resolve()
+    tools = call["args"][call["args"].index("--allowedTools") + 1]
+    assert "Write(web/design/**)" in tools and "Bash" in tools.split(",")
+    assert not (web / "seed-umbra.log").exists()

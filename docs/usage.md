@@ -181,6 +181,9 @@ repos = ["api-landing-manager", "front-landing-manager"]  # orden de integració
   etapa de diseño: diseña antes, en una tarea del front.
 - `umbra design replicar` (`/replicar`) levanta el `dev` de cada repo en orden y deja la réplica
   en el repo de la app: el de `[workspace] app` o el último de la lista.
+  El replicador prepara la app por su cuenta: usuarios de prueba temporales en tu base
+  local (los borra al terminar) y datos de ejemplo para los servicios externos que fallen.
+  Captura todas las vistas o descarta la réplica entera y te dice qué faltó.
 - Si un repo ya tenía tareas en marcha con su propio umbra, termínalas antes de unirlo. El
   onboarding se hace en cada repo antes de crear el espacio.
 

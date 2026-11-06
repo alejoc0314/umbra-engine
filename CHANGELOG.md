@@ -7,6 +7,11 @@ versión publicada.
 
 ## Sin publicar
 
+- **La réplica del diseño se prepara sola**: crea usuarios de prueba temporales con los medios
+  de tu proyecto (y los borra), simula con datos de ejemplo lo externo que no funcione en local y
+  captura todas las vistas, o se descarta entera y te dice por qué. En un espacio ve todos los
+  repos y deja los tableros en tu herramienta de diseño.
+
 ## v0.26.4 — 2026-11-05
 
 - `/replicar` ya no falla por los registros que el navegador deja en `.playwright-mcp/`: se borran

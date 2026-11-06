@@ -104,6 +104,7 @@ def test_replicate_the_current_design(env):
     files = git(env.root, "log", "-1", "--name-only", "--format=").stdout
     assert "design/actual/inicio.png" in files and "design/sistema.md" in files
     assert not (env.root / ".playwright-mcp").exists()  # lo del navegador no es trabajo
+    assert not (env.root / "seed-umbra.log").exists()  # lo suelto de preparar la app, tampoco
     call = env.claude_calls()[0]
     assert flag(call["args"], "--model") == "sonnet" and "mcp__playwright" in call["args"][
         call["args"].index("--allowedTools") + 1]
@@ -120,6 +121,16 @@ def test_replica_needs_dev_and_only_touches_design(env):
     result = env.umbra("design", "replicar", ok=False)
     assert result.exit_code != 0 and "calc.py" in result.output
     assert "return 42" not in (env.root / "calc.py").read_text()
+    assert not (env.root / "design").exists()  # todo o nada: la réplica se descartó
+
+
+def test_a_replica_with_missing_views_is_discarded_whole(env):
+    with_dev(env)
+    env.mode("replicate_partial")
+    result = env.umbra("design", "replicar", ok=False)
+    assert result.exit_code != 0
+    assert "faltaron vistas" in result.output and "sesión ADMIN" in result.output
+    assert not (env.root / "design" / "actual" / "inicio.png").exists()
 
 
 def test_replicate_from_the_phone(env, tg):

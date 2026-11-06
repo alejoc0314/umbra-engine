@@ -24,7 +24,12 @@ ACTION_TOOLS = {
     "read": ["Read", "Glob", "Grep"],
     "search": ["Glob", "Grep"],
     "edit": ["Edit", "Write", "MultiEdit"],
+    "shell": ["Bash"],
 }
+# con `shell`, el agente no publica ni reescribe historia: eso es del motor (y de la persona)
+SHELL_DENY = [f"Bash(git {verb}:*)" for verb in
+              ("commit", "push", "reset", "checkout", "switch", "clean", "stash", "rebase",
+               "merge", "restore", "rm", "tag")]
 
 
 def allowed_tools(actions: list[str], commands: list[str],
@@ -44,7 +49,9 @@ def allowed_tools(actions: list[str], commands: list[str],
 def playwright_server(screenshots_dir: str | None, files: bool = False) -> dict:
     """Servidor MCP de Playwright (sin cabeza); las capturas caen en `screenshots_dir`. Con
     `files`, puede abrir archivos locales (`file://`): las maquetas HTML del diseñador."""
-    args = ["-y", "@playwright/mcp@latest", "--headless"]
+    # network: browser_route simula peticiones (servicios externos que no existen en local);
+    # storage: cookies y almacenamiento de la sesión
+    args = ["-y", "@playwright/mcp@latest", "--headless", "--caps=network,storage"]
     if sys.platform == "win32":  # Edge viene con Windows; Chrome (el de Playwright) no siempre
         args += ["--browser", "msedge"]
     if files:
@@ -105,6 +112,8 @@ def build_command(req: AgentRun) -> list[str]:
         tools += [f"mcp__{name}" for name in servers]
     if tools:
         cmd += ["--allowedTools", ",".join(tools)]
+    if "shell" in p.actions:
+        cmd += ["--disallowedTools", ",".join(SHELL_DENY)]
     cmd += ["--max-budget-usd", str(p.limits.max_cost_usd)]
     if req.resume_session:
         cmd += ["--resume", req.resume_session]

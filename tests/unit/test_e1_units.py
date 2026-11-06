@@ -90,6 +90,14 @@ def test_build_command_maps_profile(tmp_path):
     assert cmd[cmd.index("--fallback-model") + 1] == "claude-opus-5-5"
 
 
+def test_shell_allows_commands_but_never_git_that_changes_things(tmp_path):
+    cmd = build_command(make_req(tmp_path, actions=["read", "shell"]))
+    assert "Bash" in cmd[cmd.index("--allowedTools") + 1].split(",")
+    denied = cmd[cmd.index("--disallowedTools") + 1]
+    assert "Bash(git push:*)" in denied and "Bash(git commit:*)" in denied
+    assert "--disallowedTools" not in build_command(make_req(tmp_path))
+
+
 def test_read_only_profile_has_no_edit_or_bash():
     assert allowed_tools(["read"], ["pytest -q"]) == ["Read", "Glob", "Grep"]
 

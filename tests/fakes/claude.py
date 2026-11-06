@@ -139,16 +139,25 @@ elif mode in ("replicate", "replicate_stray"):  # visita la app y deja la répli
     envelope = json.loads(re.search(r"```json\n(.*?)\n```", prompt, re.S).group(1))
     with urllib.request.urlopen(envelope["app_url"], timeout=5) as resp:
         seen = resp.status
-    Path("design/actual").mkdir(parents=True, exist_ok=True)
-    Path("design/actual/inicio.png").write_bytes(b"\x89PNG fake")
-    Path("design/actual/indice.md").write_text("| Vista | Ruta |\n| Inicio | / |\n")
-    Path("design/sistema.md").write_text("# Sistema\n\nPrimario #001E62\n")
+    # la carpeta de diseño que indica umbra (en un espacio, la del repo de la app)
+    design = re.search(r"`([^`]+)/`", envelope["feedback"][0]).group(1)
+    Path(f"{design}/actual").mkdir(parents=True, exist_ok=True)
+    Path(f"{design}/actual/inicio.png").write_bytes(b"\x89PNG fake")
+    Path(f"{design}/actual/indice.md").write_text("| Vista | Ruta |\n| Inicio | / |\n")
+    Path(f"{design}/sistema.md").write_text("# Sistema\n\nPrimario #001E62\n")
     Path(".playwright-mcp").mkdir(exist_ok=True)  # como el MCP real: consola e instantáneas
     Path(".playwright-mcp/console-1.log").write_text("[info] ok\n")
+    app = Path(design).parent
+    (app / "seed-umbra.log").write_text("usuarios de prueba creados y borrados\n")  # suelto
     if mode == "replicate_stray":
-        calc.write_text("def add(a, b):\n    return 42\n")
-    structured_images = ["design/actual/inicio.png"]
+        (app / "calc.py").write_text("def add(a, b):\n    return 42\n")
+    structured_images = [f"{design}/actual/inicio.png"]
     structured_summary = f"1 vista (HTTP {seen})"
+elif mode == "replicate_partial":  # captura una vista pero no logra otra
+    Path("design/actual").mkdir(parents=True, exist_ok=True)
+    Path("design/actual/inicio.png").write_bytes(b"\x89PNG fake")
+    status, questions = "blocked", ["Panel: pide una sesión ADMIN que no se pudo crear"]
+    structured_images = ["design/actual/inicio.png"]
 elif mode in ("amend", "amend_stray"):  # el redactor enmienda la constitución
     c = Path(".specify/memory/constitution.md")
     c.write_text(c.read_text() + "\n### 2. Contratos\n\nToda API MUST tener test de contrato.\n")
