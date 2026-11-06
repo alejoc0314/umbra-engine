@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.27.1 — 2026-11-06
+
 - Si el modelo de un agente agota su gasto o su cuota (por ejemplo, Fable sin gasto del mes), umbra
   repite el intento con el modelo de respaldo del perfil (Opus 5.5) en vez de dejar caer la tarea.
 
