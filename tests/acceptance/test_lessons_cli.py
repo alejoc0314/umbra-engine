@@ -151,3 +151,44 @@ def test_watch_header_does_not_wait_for_lessons(env, monkeypatch):
     finally:
         release.set()
         loader.close()
+
+
+def test_watch_header_shows_lessons_as_soon_as_counted(env, monkeypatch):
+    """La primera carga de watch no espera el conteo de lecciones (no retrasa el panel de
+    decisión) y la cabecera lo muestra en cuanto llega, sin esperar al próximo refresco."""
+    import asyncio
+    import threading
+
+    from textual.widgets import Static
+
+    from umbra import service
+    from umbra.cli.watch import WatchApp
+
+    release = threading.Event()
+
+    def slow(ctx):
+        release.wait(10)
+        return 3
+
+    monkeypatch.setattr(service, "lesson_pending", slow)
+
+    async def scenario():
+        app = WatchApp(env.root / ".umbra", interval=60)  # sin refrescos durante la prueba
+        async with app.run_test() as pilot:
+            for _ in range(100):
+                await pilot.pause(0.05)
+                if app._header_text is not None:
+                    break
+            assert app._header_text is not None and "por decidir" not in app._header_text
+            release.set()
+            for _ in range(100):
+                await pilot.pause(0.05)
+                if "3 lecciones por decidir" in str(app.query_one("#status", Static).render()):
+                    break
+            assert "3 lecciones por decidir" in str(app.query_one("#status", Static).render())
+            await pilot.press("q")
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        release.set()

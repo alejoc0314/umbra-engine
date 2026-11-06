@@ -123,7 +123,7 @@ def report_ansi(data: dict, width: int = EVIDENCE_WIDTH, raw: bool = False) -> s
 
 
 class Loader:
-    def __init__(self, udir: Path):
+    def __init__(self, udir: Path, on_lessons=None):
         self.udir, self.root = udir, udir.parent
         self.conn = open_store(udir, same_thread=False)  # solo la usa el worker exclusivo
         self.version: int | None = None
@@ -135,6 +135,7 @@ class Loader:
         self.lessons_at, self.lessons_pending = 0.0, 0  # lessons.db vive fuera del proyecto
         self.lessons_busy = self.lessons_changed = False  # el conteo corre en su propio hilo
         self.lessons_thread = None
+        self.on_lessons = on_lessons  # avisa (desde el hilo del conteo) cuando el número cambia
         self._lessons()  # arranca ya: el primer conteo corre mientras se monta la pantalla
         self.width = EVIDENCE_WIDTH  # ancho al que se envuelve el informe (lo fija la pantalla)
 
@@ -145,8 +146,6 @@ class Loader:
              force: bool = False, want: str = "situation") -> Snapshot | None:
         """None = nada cambió desde la última instantánea."""
         conn = self.conn
-        if self.version is None:
-            self.wait_lessons(0.25)  # acotado: la primera carga nunca espera más que esto
         version = data_version(conn)
         if selected is None:
             selected = self._default_selection()
@@ -231,20 +230,19 @@ class Loader:
             self.lessons_thread.start()
         return self.lessons_pending
 
-    def wait_lessons(self, seconds: float) -> None:
-        """Al abrir, espera un poco el primer conteo para que la cabecera ya lo traiga."""
-        if self.lessons_thread is not None:
-            self.lessons_thread.join(seconds)
-
     def _count_lessons(self) -> None:
+        """Nadie lo espera: la primera carga sale sin él y on_lessons repinta la cabecera."""
         try:
             ctx = service.Ctx(self.root, self.udir, None, project.load_project(self.root))
             count = service.lesson_pending(ctx)
         except Exception:  # noqa: BLE001 — sin lessons.db, la cabecera no lo menciona
             count = 0
-        if count != self.lessons_pending:
+        changed = count != self.lessons_pending
+        if changed:
             self.lessons_pending, self.lessons_changed = count, True
         self.lessons_busy = False
+        if changed and self.on_lessons is not None:
+            self.on_lessons()
 
     def _tasks(self) -> list[TaskRow]:
         conn = self.conn

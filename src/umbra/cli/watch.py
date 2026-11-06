@@ -150,6 +150,7 @@ class WatchApp(App):
         self._attempt_run: str | None = None
         self._spec_lines: list | None = None
         self._header_text: str | None = None
+        self._last_header = None  # la última cabecera: se repinta cuando llega el conteo
         self._statuses: dict[int, str | None] | None = None  # para avisar solo de cambios
         self._shown_situation: tuple | None = None
         self._shown_extra: dict[str, tuple] = {}
@@ -201,7 +202,7 @@ class WatchApp(App):
             self.notify(warning, severity="warning")
         self._prefs_ready = True  # antes, el tema por defecto pisaría el guardado
         self._log_title()
-        self._loader = Loader(self.udir)
+        self._loader = Loader(self.udir, on_lessons=self._lessons_counted)
         self._conn = open_store(self.udir)
         self._lease = (f"watch:{os.getpid()}@{socket.gethostname()}", 0)
         self._renew_lease()
@@ -747,10 +748,24 @@ class WatchApp(App):
             self._memory(snap)
         self._release()
 
+    def _lessons_counted(self) -> None:
+        """Desde el hilo del conteo: la cabecera trae el número sin esperar al próximo tick."""
+        if self._alive:
+            try:
+                self.call_from_thread(self._paint_status)
+            except RuntimeError:  # la pantalla ya se cerró
+                pass
+
     def _status(self, snap: Snapshot) -> None:
-        h = snap.header
-        if h is None:
+        if snap.header is not None:
+            self._last_header = snap.header
+            self._paint_status()
+
+    def _paint_status(self) -> None:
+        h = self._last_header
+        if h is None or not self._alive:
             return
+        lessons = self._loader.lessons_pending if self._loader else h.lessons  # el más reciente
         ok, warn = self._color("done"), self._color("blocked")
         text = Text.assemble(
             ("● worker vivo", ok) if h.worker_alive else ("○ worker parado", "dim"),
@@ -758,9 +773,9 @@ class WatchApp(App):
             f"{h.tasks} tareas", "  ·  ",
             (f"⚠ {h.attention} te necesita{'n' if h.attention != 1 else ''}", f"bold {warn}")
             if h.attention else ("nada pendiente de ti", "dim"))
-        if h.lessons:
+        if lessons:
             text.append("  ·  ")
-            text.append(f"● {h.lessons} lecci{'ones' if h.lessons != 1 else 'ón'} por decidir",
+            text.append(f"● {lessons} lecci{'ones' if lessons != 1 else 'ón'} por decidir",
                         f"bold {warn}")
         if text.plain != self._header_text:
             self._header_text = text.plain
