@@ -51,3 +51,30 @@ def test_explore_failure_does_not_block_the_task(env, monkeypatch):
     assert failed and "git se colgó" in failed[0]["reason"]
     assert not events(env, "explore.ready")
     assert HEADER not in env.claude_calls()[1]["prompt"]
+
+
+def test_review_rejection_proposes_a_lesson_that_is_not_applied(env):
+    from umbra.management import lessons
+
+    env.mode("noop", "ok", "ok", "noop")
+    env.codex_mode("high:falta validar entradas", "clean")
+    context_task(env)
+    assert run_feature(env) == "WAITING_APPROVAL"
+    db = lessons.open_db()
+    rows = db.execute("SELECT * FROM lesson").fetchall()
+    assert [(r["number"], r["status"]) for r in rows] == [(1, "proposed")]
+    assert "falta validar entradas" in rows[0]["text"]
+    origins = db.execute("SELECT * FROM lesson_origin WHERE number = 1").fetchall()
+    assert len(origins) == 1
+    o = origins[0]
+    assert (o["kind"], o["task"], o["stage"]) == ("review_rejected", 1, "review")
+    assert "falta validar entradas" in o["detail"] and o["created_at"][:2] == "20"
+    assert events(env, "lessons.proposed")[-1]["proposed"] == 1
+
+    env.umbra("task", "add", "Restar en calc.py", "-d", "sub de calc.py debe restar")
+    env.umbra("run", "2", "-r", "feature", "--foreground", ok=False)
+    second = events(env, "explore.ready")[-1]
+    assert {"path": "calc.py", "repo": "", "why": "nombrado en la tarea"} in second["files"]
+    assert second["lessons"] == []
+    later = env.claude_calls()[4:]
+    assert later and all("Lecciones aprobadas" not in c["prompt"] for c in later)

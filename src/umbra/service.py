@@ -988,9 +988,12 @@ def resume_human(ctx: Ctx, number: int, message: str, foreground: bool = False,
     ps = e.parts(e.run_row(run_id))  # en una tarea entre repos, cada repo
     if any("test" not in commands.registered(p.config) for p in ps):
         raise OpError("no hay comando 'test' registrado en .umbra/project.toml")
+    fixed: list[str] = []  # los archivos del arreglo de la persona (fuente de lecciones)
     for p in ps:
         if git.has_changes(p.wt):
             git.commit_all(p.wt, f"humano: {message}")
+            fixed += [p.show(n) for n in git.run(p.wt, "diff-tree", "--no-commit-id",
+                                                 "--name-only", "-r", "HEAD").splitlines() if n]
     heads = e.heads(ps)
     head = fingerprint(heads)
     tested = ctx.conn.execute("SELECT tested_sha FROM artifact WHERE run_id = ? AND tested_sha"
@@ -1009,6 +1012,8 @@ def resume_human(ctx: Ctx, number: int, message: str, foreground: bool = False,
         (attempt_id, run_id, attempt_no, now()))
     add_event(ctx.conn, run_id, "takeover.done", origin, actor=actor(), message=message,
               attempt=attempt_id, sha=head)
+    add_event(ctx.conn, run_id, "human.fixed", origin, actor=actor(), message=message,
+              files=fixed, stage=run_row["stage"])
     failed = None
     for p in ps:
         test = commands.run_registered(ctx.conn, p.config, "test", p.wt, ctx.udir, run_id,

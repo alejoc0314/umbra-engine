@@ -1,0 +1,11 @@
+name         = "lesson-writer"
+agent        = "claude-code"
+roles        = ["lessons"]
+model        = "haiku"
+instructions = "lesson-writer.md"
+actions      = []
+output       = "lesson-draft/v1"
+
+[limits]
+max_minutes  = 3
+max_cost_usd = 0.10
