@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.26.4 — 2026-11-05
+
 - `/replicar` ya no falla por los registros que el navegador deja en `.playwright-mcp/`: se borran
   al terminar, porque no son parte de la réplica.
 
