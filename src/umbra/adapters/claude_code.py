@@ -1,6 +1,8 @@
 """Adaptador de Claude Code: `claude -p` con salida stream-json (usa el login del usuario)."""
 
+import dataclasses
 import json
+import re
 import shutil
 import sys
 from decimal import Decimal
@@ -157,6 +159,12 @@ def parse_stream(text: str, model: type[BaseModel] = StageOutput) -> AgentResult
     return AgentResult(ok=True, output=output, **base)
 
 
+# límites del modelo que `--fallback-model` no cubre (solo cambia si está saturado o no existe):
+# gasto mensual, uso o cuota del modelo. Con ellos, umbra repite el intento con el de respaldo.
+MODEL_LIMIT = re.compile(r"(spend|usage|rate)[ _-]?limit|limit (reached|exceeded)|"
+                         r"switch to another model|quota", re.IGNORECASE)
+
+
 class ClaudeCodeAdapter:
     name = "claude-code"
 
@@ -164,6 +172,19 @@ class ClaudeCodeAdapter:
         return shutil.which("claude") is not None
 
     def run(self, req: AgentRun) -> AgentResult:
+        result = self._run(req)
+        p = req.profile
+        if (not result.ok and not result.timed_out and p.fallback_model
+                and p.fallback_model != p.model and MODEL_LIMIT.search(result.error or "")):
+            backup = p.model_copy(update={"model": p.fallback_model, "fallback_model": None})
+            retry = self._run(dataclasses.replace(req, profile=backup, resume_session=None))
+            retry.cost += result.cost  # lo que gastó el intento que chocó con el límite
+            if not retry.ok:
+                retry.error = f"{p.model}: {result.error} · {p.fallback_model}: {retry.error}"
+            return retry
+        return result
+
+    def _run(self, req: AgentRun) -> AgentResult:
         commands = req.allowed_commands if {"run_tests", "run_lint"} & set(req.profile.actions) \
             else []
         proc = run_bounded(build_command(req), req.workspace,

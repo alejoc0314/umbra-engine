@@ -43,6 +43,13 @@ with locked(calls_file):
     calls.append({"args": sys.argv[1:], "prompt": prompt, "cwd": os.getcwd()})
     calls_file.write_text(json.dumps(calls))
 
+limited = os.environ.get("FAKE_CLAUDE_LIMIT_MODEL", "").split(",")  # agotaron su gasto del mes
+if "--model" in sys.argv and sys.argv[sys.argv.index("--model") + 1] in limited:
+    print(json.dumps({"type": "result", "is_error": True, "session_id": "s",
+                      "result": "You've hit your monthly spend limit. Switch to another model "
+                                "to continue."}))
+    sys.exit(1)
+
 modes = os.environ.get("FAKE_CLAUDE_MODE", "ok").split(",")
 mode = modes[min(len(calls), len(modes)) - 1]
 calc = Path("calc.py")
