@@ -1590,6 +1590,9 @@ def _repo_files(ctx: Ctx) -> list[str]:
 
 def lesson_pending(ctx: Ctx) -> int:
     """Cuántas lecciones esperan la decisión de la persona (la cabecera de watch)."""
+    from umbra.unified import config as cfg
+    if not (cfg.umbra_home() / "lessons.db").exists():
+        return 0  # nada cosechado aún: ni git ni crear la base solo para contar
     return _lessons(ctx, lambda m, db, key: db.execute(
         "SELECT COUNT(*) FROM lesson WHERE project_key = ? AND status = 'proposed'",
         (key,)).fetchone()[0])
