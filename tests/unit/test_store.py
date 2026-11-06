@@ -80,3 +80,27 @@ def test_status_summary_sums_cost_as_decimal(conn):
 
 def test_to_cost_avoids_float_noise():
     assert store.to_cost(0.1) == "0.1"
+
+
+def test_two_processes_opening_a_new_db_at_once_both_end_migrated(tmp_path):
+    """El puente y un worker abren a la vez la base de un proyecto nuevo: ninguno falla."""
+    import threading
+    for i in range(8):  # ponytail: carrera probabilística; 8 rondas la reproducían sin el arreglo
+        path, errors, conns = tmp_path / f"{i}.db", [], []
+        barrier = threading.Barrier(4)
+
+        def open_it(path=path, barrier=barrier, errors=errors, conns=conns):
+            barrier.wait()
+            try:
+                conns.append(store.connect(path, same_thread=False))
+            except Exception as e:  # noqa: BLE001 (la prueba recoge cualquier fallo)
+                errors.append(e)
+        threads = [threading.Thread(target=open_it) for _ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert not errors, errors
+        for c in conns:
+            assert c.execute("PRAGMA user_version").fetchone()[0] == len(store.MIGRATIONS)
+            c.close()
