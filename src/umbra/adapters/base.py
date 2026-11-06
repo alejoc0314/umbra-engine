@@ -57,6 +57,10 @@ def render_prompt(envelope: Envelope, commands: list[str]) -> str:
     if envelope.project_notes:
         notes = ("Contexto del proyecto y decisiones ya tomadas por la persona responsable "
                  f"(respétalas):\n\n{envelope.project_notes.rstrip()}\n\n")
+    if envelope.context:
+        notes += ("Contexto de esta tarea (reunido por umbra antes de empezar: archivos, tests, "
+                  "historia, tareas anteriores y lecciones aprobadas por la persona; léelo antes "
+                  f"de explorar por tu cuenta):\n\n{envelope.context.rstrip()}\n\n")
     if envelope.design:
         notes += ("Diseño aprobado por la persona (pantallas en `design`; míralas con Read antes "
                   "de empezar). Al construir, maqueta fiel a él: estructura, jerarquía, colores, "

@@ -135,7 +135,14 @@ CREATE TABLE run_part (
     PRIMARY KEY (run_id, repo)
 );
 """
-MIGRATIONS = [_V1, _V2, _V3, _V4, _V5, _V6, _V7, _V8]
+# contexto por tarea (spec 035): los archivos que cambió cada ejecución
+_V9 = """
+CREATE TABLE run_file (
+    run_id TEXT NOT NULL REFERENCES run(id), repo TEXT NOT NULL DEFAULT '', path TEXT NOT NULL,
+    PRIMARY KEY (run_id, repo, path)
+);
+"""
+MIGRATIONS = [_V1, _V2, _V3, _V4, _V5, _V6, _V7, _V8, _V9]
 
 
 def now() -> str:

@@ -7,6 +7,10 @@ versión publicada.
 
 ## Sin publicar
 
+- **Cada tarea arranca con el contexto justo**: la nueva etapa Explorar de la rutina `feature` reúne, sin modelo, los
+  archivos, tests, historia y tareas anteriores de la zona que toca la tarea, con tamaño acotado
+  (`[context] max_chars`), y los agentes lo reciben. Si falla, la tarea sigue.
+
 ## v0.27.0 — 2026-11-05
 
 - **La réplica del diseño se prepara sola**: crea usuarios de prueba temporales con los medios
