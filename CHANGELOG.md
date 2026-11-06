@@ -7,7 +7,7 @@ versión publicada.
 
 ## Sin publicar
 
-- **Cada tarea arranca con el contexto justo**: la nueva etapa Explorar reúne, sin modelo, los
+- **Cada tarea arranca con el contexto justo**: la nueva etapa Explorar de la rutina `feature` reúne, sin modelo, los
   archivos, tests, historia y tareas anteriores de la zona que toca la tarea, con tamaño acotado
   (`[context] max_chars`), y los agentes lo reciben. Si falla, la tarea sigue.
 

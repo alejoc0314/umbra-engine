@@ -152,3 +152,18 @@ def test_previous_tasks_touching_the_zone(tmp_path):
     prev = explore.previous_tasks(conn, [], [{"path": "src/a.py", "repo": "", "why": ""}])
     assert prev == [{"number": 1, "title": "Cobro", "outcome": "SUCCEEDED",
                      "findings": ["no redondear antes de sumar"]}]
+
+
+def test_explore_runs_in_feature_but_quick_stays_minimal():
+    import yaml
+
+    import umbra
+
+    routines = Path(umbra.__file__).parent / "defaults" / "routines"
+
+    def stages(name: str) -> list[str]:
+        data = yaml.safe_load((routines / f"{name}.yaml").read_text(encoding="utf-8"))
+        return [s["name"] for s in data["stages"]]
+
+    assert stages("feature")[0] == "explore"
+    assert stages("quick") == ["build", "ship"]  # la rutina rápida no explora

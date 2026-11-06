@@ -1,6 +1,5 @@
 name: quick
 stages:
-  - name: explore   # umbra reúne el contexto de la tarea, sin modelo
   - name: build
     profile: builder
     max_fix_cycles: 2
