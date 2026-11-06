@@ -220,3 +220,62 @@ def tg(env):
     env.monkeypatch.setattr(bridge, "spawn", lambda root: None)  # sin proceso aparte
     yield fake
     fake.server.shutdown()
+
+
+# ---------- espacio de trabajo con dos repos, api y web (specs 032 y 033) ----------
+CALC = "def add(a, b):\n    return 0\n"
+TEST = "from calc import add\n\n\ndef test_add():\n    assert add(2, 3) == 5\n"
+
+
+def make_repo(tmp_path, name):
+    repo = tmp_path / "ws" / name
+    repo.mkdir(parents=True)
+    git(repo, "init", "-q", "-b", "main")
+    git(repo, "config", "user.email", "test@umbra.local")
+    git(repo, "config", "user.name", "umbra test")
+    (repo / "calc.py").write_text(CALC)
+    (repo / "tests").mkdir()
+    (repo / "tests" / "test_calc.py").write_text(TEST)
+    (repo / "pyproject.toml").write_text('[tool.pytest.ini_options]\npythonpath = ["."]\n')
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "init")
+    remote = tmp_path / "remotes" / f"{name}.git"
+    git(tmp_path, "init", "-q", "--bare", "-b", "main", str(remote))
+    git(repo, "remote", "add", "origin", str(remote))
+    git(repo, "push", "-q", "origin", "main")
+    return repo
+
+
+def tune_repo(repo):
+    cfg = repo / ".umbra" / "project.toml"
+    cfg.write_text(cfg.read_text().replace(
+        'test = { run = "pytest -q", safe = true }',
+        f"test = {{ run = '\"{sys.executable}\" -m pytest -q -p no:cacheprovider', safe = true }}"
+    ).replace("[project]\n", '[project]\ndefault_routine = "quick"\n'))
+
+
+@pytest.fixture
+def ws(tmp_path, monkeypatch):
+    for name in ("api", "web"):
+        make_repo(tmp_path, name)
+    root = tmp_path / "ws"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for fake in ("claude", "gh", "codex"):
+        install_fake(bin_dir, fake)
+    state = tmp_path / "state"
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setenv("FAKE_STATE_DIR", str(state))
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
+    monkeypatch.setenv("UMBRA_HOME", str(tmp_path / "home"))
+    monkeypatch.chdir(root)
+    monkeypatch.setattr(service, "interactive", lambda: True)
+    env = Env(root, state, CliRunner(), monkeypatch)
+    env.umbra("init", "-y")
+    for name in ("api", "web"):
+        tune_repo(root / name)
+    cfg = root / ".umbra" / "project.toml"
+    cfg.write_text(cfg.read_text().replace("summary = true", "summary = false")
+                   .replace("desktop = true", "desktop = false")
+                   .replace("parallel = 2", "parallel = 1"))
+    return env

@@ -10,6 +10,9 @@ versión publicada.
 - **Espacios de trabajo** para proyectos con front y back en repos separados: `umbra init` en la
   carpeta padre los une en una sola cola, un `watch` y un Telegram. Cada historia dice su repo
   (`**Repo**: api`) y la spec se aprueba de una vez, con un PR por repo integrado en orden.
+- **Tareas entre repos**: una historia con `**Repo**: api, front` la trabaja un solo agente con
+  los dos repos a la vista, con los tests de cada uno, un PR por repo y una sola aprobación. En
+  VERIFY se levantan los dos y el front recibe la URL del back (`UMBRA_URL_API`).
 
 ## v0.25.0 — 2026-11-05
 

@@ -633,23 +633,23 @@ def _policy_now(udir, run) -> list | None:
     """Re-evalúa el cambio de una ejecución detenida con la política vigente."""
     from pathlib import Path
 
-    from umbra.actions import git, policy
+    from umbra.routines.engine import for_run
     from umbra.unified.project import load_project
+    from umbra.unified.store import open_store
 
     wt = Path(run["worktree"] or "")
     if not run["worktree"] or not wt.exists() or not run["base_sha"]:
         return None
-    try:
-        protected = load_project(udir.parent).get("policy", {}).get(
-            "protected_paths", policy.DEFAULT_PROTECTED)
-        changes = git.changed_files(wt, run["base_sha"])
-        edits = {p: git.edit_summary(wt, run["base_sha"], "HEAD", p)
-                 for s, p in changes if s[0] == "M" and policy.is_test_file(p)}
-        allowed = json.loads(run["allowed_paths"] or "[]") if "allowed_paths" in run.keys() \
-            else []
-        return policy.check_diff(changes, protected, edits, allowed)
+    conn = None
+    try:  # la política de cada repo de la tarea, sobre su parte del cambio
+        conn = open_store(udir)
+        e = for_run(udir.parent, udir, conn, load_project(udir.parent), run["id"])
+        return e.policy_violations(e.run_row(run["id"]))
     except Exception:  # no poder re-evaluar no debe impedir explicar
         return None
+    finally:
+        if conn:
+            conn.close()
 
 
 def short(exp: Explanation) -> str:

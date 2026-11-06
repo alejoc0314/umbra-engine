@@ -169,6 +169,16 @@ repos = ["api-landing-manager", "front-landing-manager"]  # orden de integració
   las de una spec, hay un PR de spec por repo. `umbra approve --spec` los integra en el orden del
   espacio; si uno falla, el resto queda como estaba y aprobar de nuevo integra solo lo que faltó.
 - Lo que depende de un repo concreto se le indica: `umbra exec test --repo <nombre>`.
+- **Tareas entre repos.** Si un cambio solo tiene sentido completo en varios repos (un campo que
+  viaja de la base de datos a la pantalla), la historia los nombra todos: `**Repo**: api, front`
+  (o `umbra task add "…" --repo api --repo front`). Un solo agente trabaja en una carpeta con un
+  worktree de cada repo y ve los dos lados. Cada repo pasa su política y sus tests, y la tarea
+  avanza solo si pasan todos. Hay un PR por cada repo que cambió, enlazados entre sí, y una sola
+  aprobación cubre todos; un commit nuevo en cualquiera la invalida. En VERIFY, umbra levanta el
+  `dev` de cada repo en orden y pasa la URL de los anteriores como `UMBRA_URL_<REPO>` (por
+  ejemplo, `UMBRA_URL_API`): haz que el front la use para apuntar al back de la tarea. El
+  navegador abre la app del último repo, o la de `[workspace] app`. En estas tareas se salta la
+  etapa de diseño: diseña antes, en una tarea del front.
 - Si un repo ya tenía tareas en marcha con su propio umbra, termínalas antes de unirlo. El
   onboarding se hace en cada repo antes de crear el espacio.
 

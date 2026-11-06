@@ -24,7 +24,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from umbra import service
-from umbra.actions import git
 from umbra.blocks import telegram
 from umbra.blocks.process import background_kwargs
 from umbra.management import projects
@@ -207,7 +206,7 @@ def act(ctx: service.Ctx, data: str, who: str) -> str:
             if not run["head_sha"] or not wt.is_dir():
                 return f"La tarea {n} no tiene cambios evaluados todavía."
             pr = service.engine(ctx, ORIGIN).pr_info(run["id"]) or {}
-            stat = git.diff_stat(wt, run["base_sha"], run["head_sha"])
+            stat = service.diff_stat(ctx, run)
             return f"Cambios de la tarea {n}:\n{stat}" + (f"\n{pr['url']}" if pr else "")
         if kind == "allow":
             paths = service.blocked_paths(ctx, n)

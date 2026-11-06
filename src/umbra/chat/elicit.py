@@ -99,7 +99,10 @@ def workspace_note(root: Path | None) -> str:
             f"{', '.join(repos)}. Cada historia de usuario MUST llevar, debajo de su título, una "
             "línea `**Repo**: <nombre>` con el repo donde se hace. Ordena las historias para que "
             "lo que un repo necesita de otro vaya antes (por ejemplo, el endpoint del back antes "
-            "de la pantalla del front): cada historia espera a que la anterior esté integrada.")
+            "de la pantalla del front): cada historia espera a que la anterior esté integrada. "
+            "Si un cambio solo tiene sentido completo en varios repos a la vez (un campo que "
+            "viaja de la base de datos a la pantalla), la historia los nombra todos: "
+            "`**Repo**: api, front`; un agente los trabaja juntos y se integran juntos.")
 
 
 # --- preguntas -------------------------------------------------------------------------------
