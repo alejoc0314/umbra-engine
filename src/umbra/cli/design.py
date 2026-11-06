@@ -119,13 +119,13 @@ def replicate(yes: bool = typer.Option(False, "--yes", "-y", help="Aprobar sin p
     try:
         r = replica.replicate(ctx.conn, ctx.root, ctx.udir, ctx.config)
         print(f"{len(r['images'])} vistas replicadas en design/actual/.\n{r['summary']}")
-        for f in replica.pending(ctx.root):
+        for f in replica.pending(r["root"]):
             print(f"  {f}")
-        if yes or typer.confirm("¿Guardas la réplica en el repo?"):
-            sha = replica.accept(ctx.conn, ctx.root)
+        if yes or typer.confirm(f"¿Guardas la réplica en {r['root'].name}?"):
+            sha = replica.accept(ctx.conn, r["root"])
             print(f"Réplica guardada (commit {sha[:10]}).")
         else:
-            replica.discard(ctx.conn, ctx.root)
+            replica.discard(ctx.conn, r["root"])
             print("Réplica descartada.")
     except replica.ReplicaError as e:
         fail(str(e))

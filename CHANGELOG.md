@@ -7,6 +7,9 @@ versión publicada.
 
 ## Sin publicar
 
+- `/replicar` y `umbra design replicar` funcionan en un espacio de trabajo: levantan el back y
+  luego el front (con `UMBRA_URL_<REPO>`) y guardan la réplica en el repo de la app.
+
 ## v0.26.1 — 2026-11-05
 
 - Adoptar una carpeta con varios repos (`/adoptar` en Telegram) crea un espacio de trabajo en vez

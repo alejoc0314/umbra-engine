@@ -170,10 +170,11 @@ def act(ctx: service.Ctx, data: str, who: str) -> str:
         if kind == "dr":
             from umbra.management import replica
             try:
+                app = replica.app_repo(ctx.root, ctx.config)[0]  # en un espacio, el front
                 if arg == "approve":
-                    sha = replica.accept(ctx.conn, ctx.root, ORIGIN)
+                    sha = replica.accept(ctx.conn, app, ORIGIN)
                     return f"Réplica guardada (commit {sha[:10]})."
-                replica.discard(ctx.conn, ctx.root, ORIGIN)
+                replica.discard(ctx.conn, app, ORIGIN)
                 return "Réplica descartada."
             except replica.ReplicaError as e:
                 return f"No se pudo: {e}"
@@ -655,8 +656,8 @@ def command(state: State, text: str, who: str) -> str:
                 return say(f"No se pudo: {e}")
             finally:
                 ctx.conn.close()
-            telegram.send_photos(state.tg, [ctx.root / f for f in r["images"]],
-                                 f"Diseño actual de {ctx.root.name}")
+            telegram.send_photos(state.tg, [r["root"] / f for f in r["images"]],
+                                 f"Diseño actual de {r['root'].name}")
             say(f"{len(r['images'])} vistas replicadas en design/actual/.\n{r['summary']}",
                 [[("✅ Guardar en el repo", "dr:approve"), ("🗑 Descartar", "dr:discard")]])
         return _job(state, rep, say) or ("Levanto la app y recorro sus vistas; tarda unos "
