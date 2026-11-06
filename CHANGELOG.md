@@ -12,6 +12,9 @@ versión publicada.
   (`[context] max_chars`), y los agentes lo reciben. Si falla, la tarea sigue.
 - **El contexto se ve como evidencia**: `umbra explain` y `umbra watch` muestran el contexto que
   recibió el agente (archivos, tests, lecciones, tamaño y lo que quedó fuera); en `watch`, `k` lo abre.
+- **umbra propone lecciones de sus tropiezos**: cuando una tarea tropieza (rechazo en Revisar,
+  ejecución detenida, tu arreglo con `umbra done -m` o un `umbra reject`), umbra propone una
+  lección con su origen y su zona; no se aplica a ninguna tarea hasta que la apruebes.
 
 ## v0.27.0 — 2026-11-05
 
