@@ -399,12 +399,22 @@ def done(number: int,
         f"tarea {number}: tu arreglo pasa los tests; sigue desde {result['resumed_from']}"))
 
 
-def exec_(name: str, as_json: bool = JsonOpt) -> None:
+def exec_(name: str, repo: str = typer.Option(None, "--repo", "-r",
+                                              help="En un espacio de trabajo: en qué repo"),
+          as_json: bool = JsonOpt) -> None:
     """Ejecuta un comando registrado en .umbra/project.toml y guarda su resultado."""
     ctx = context.load(as_json)
+    root, config = ctx.root, ctx.config
     try:
-        result = commands.run_registered(ctx.conn, ctx.config, name, ctx.root, ctx.udir,
-                                         tested_sha=git.head_or_none(ctx.root))
+        if ctx.members or repo:
+            if not repo:
+                raise service.OpError("en un espacio de trabajo, indica el repo con --repo "
+                                      f"(repos: {', '.join(ctx.members)})", 2)
+            root, config = service.member(ctx, repo)
+        result = commands.run_registered(ctx.conn, config, name, root, ctx.udir,
+                                         tested_sha=git.head_or_none(root))
+    except service.OpError as e:
+        fail(str(e), code=e.code, as_json=as_json)
     except commands.UnknownCommand as e:
         fail(str(e), code=2, as_json=as_json)
     add_event(ctx.conn, None, "command.executed", "cli", name=name,

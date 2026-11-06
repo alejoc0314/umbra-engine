@@ -28,16 +28,23 @@ def add(
     scope: list[str] = typer.Option([], "--scope", "-s", help="Ruta dentro del alcance"),
     priority: int = typer.Option(2, "--priority", "-p", min=1, max=3),
     draft: bool = typer.Option(False, "--draft", help="Crear como borrador"),
+    repo: list[str] = typer.Option([], "--repo", "-r",
+                                   help="En un espacio de trabajo: repo donde se hace"),
     as_json: bool = JsonOpt,
 ) -> None:
     """Registra una tarea (aceptada salvo --draft)."""
     ctx = context.load(as_json)
+    try:
+        service.check_repos(ctx, repo, "la tarea")
+    except service.OpError as e:
+        fail(f"{e}: indícalo con --repo", code=e.code, as_json=as_json)
     number = ctx.conn.execute("SELECT COALESCE(MAX(number), 0) + 1 FROM task").fetchone()[0]
     ctx.conn.execute(
         "INSERT INTO task (id, number, title, about, description, acceptance, scope, priority,"
-        " status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " status, repos, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (new_id(), number, title, about, description, json.dumps(accept, ensure_ascii=False),
-         json.dumps(scope), priority, "draft" if draft else "accepted", now(), now()))
+         json.dumps(scope), priority, "draft" if draft else "accepted", json.dumps(repo), now(),
+         now()))
     add_event(ctx.conn, None, "task.added", "cli", number=number, title=title)
     result = {"number": number, "title": title, "status": "draft" if draft else "accepted"}
     emit(result, as_json, lambda c: c.print(f"tarea {number} registrada: {title}"))
@@ -51,6 +58,18 @@ def _set_status(op, numbers: list[int], status: str, as_json: bool) -> None:
         fail(str(e), code=e.code, as_json=as_json)
     emit({"tasks": changed, "status": status}, as_json,
          lambda c: c.print(f"tareas {', '.join(map(str, changed))}: {status}"))
+
+
+@app.command("repo")
+def repo_(number: int, repos: list[str], as_json: bool = JsonOpt) -> None:
+    """En un espacio de trabajo: dice en qué repo (o repos) se hace una tarea."""
+    ctx = context.load(as_json)
+    try:
+        service.set_task_repos(ctx, number, repos)
+    except service.OpError as e:
+        fail(str(e), code=e.code, as_json=as_json)
+    emit({"task": number, "repos": repos}, as_json,
+         lambda c: c.print(f"tarea {number}: {' + '.join(repos)}"))
 
 
 @app.command("accept")
@@ -172,6 +191,7 @@ def list_(as_json: bool = JsonOpt) -> None:
         task = ctx.conn.execute("SELECT * FROM task WHERE number = ?", (r["number"],)).fetchone()
         r["waiting_on"] = planning.pending_dependencies(ctx.conn, task["id"])
         r["situation"] = explain.short(explain.explain_number(ctx.conn, ctx.udir, task))
+        r["title"], r["repos"] = explain.task_title(task), json.loads(task["repos"] or "[]")
 
     def render(c):
         table = Table("#", "tarea", "situación", "prioridad", "espera a")

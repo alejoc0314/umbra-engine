@@ -1,5 +1,6 @@
 """Comandos del grupo Unified: init, doctor, status."""
 
+import sys
 from pathlib import Path
 
 import typer
@@ -13,14 +14,32 @@ from umbra.unified.output import console, emit, fail
 JsonOpt = typer.Option(False, "--json", help="Salida en JSON")
 
 
-def init(as_json: bool = JsonOpt) -> None:
-    """Crea .umbra/ en el repo actual y propone comandos según el stack."""
+def init(yes: bool = typer.Option(False, "--yes", "-y", help="Crear el espacio sin preguntar"),
+         as_json: bool = JsonOpt) -> None:
+    """Crea .umbra/ en el repo actual y propone comandos según el stack. En una carpeta con
+    varios repos (front y back, por ejemplo), crea un espacio de trabajo con todos ellos."""
+    cwd = Path.cwd()
+    if (not yes and not as_json and sys.stdin.isatty() and project.find_workspace(cwd) is None
+            and project._git_root(cwd) is None):
+        repos = project.child_repos(cwd)
+        if len(repos) >= 2 and not typer.confirm(
+                f"Crear un espacio de trabajo con {', '.join(repos)} (integrados en ese orden; "
+                "luego lo puedes cambiar en .umbra/project.toml)?", default=True):
+            raise typer.Exit(1)
     try:
-        result = project.init_project(Path.cwd())
-    except project.NotARepo as e:
+        result = project.init_project(cwd)
+    except (project.NotARepo, project.NotInitialized) as e:
         fail(str(e), code=2, as_json=as_json)
 
     def render(c):
+        if result.get("workspace"):
+            verb = "creado" if result["created"] else "ya existía"
+            c.print(f"[green]espacio de trabajo {verb}[/green] en {result['root']}")
+            for r in result["repos"]:
+                c.print(f"  {r['name']} (stack: {r['stack']})")
+            c.print("Orden de integración en [workspace] repos de .umbra/project.toml; los comandos"
+                    " de cada repo, en su propio .umbra/project.toml.")
+            return
         if result["created"]:
             c.print(f"[green]umbra inicializado[/green] en {result['root']} "
                     f"(stack: {result['stack']})")
@@ -224,7 +243,8 @@ def status(as_json: bool = JsonOpt) -> None:
     attention, working = [], []
     for task in conn.execute("SELECT * FROM task WHERE status = 'accepted' ORDER BY number"):
         exp = explain.explain_number(conn, udir, task)
-        item = {"task": task["number"], "title": task["title"], "situation": explain.short(exp),
+        item = {"task": task["number"], "title": explain.task_title(task),
+                "situation": explain.short(exp),
                 "headline": exp.headline}
         if exp.state.startswith(("Detenida", "Falló", "Espera tu")):
             attention.append(item)

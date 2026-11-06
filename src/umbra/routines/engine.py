@@ -22,6 +22,7 @@ from umbra.contracts.routine import Stage
 from umbra.contracts.summary import SummaryOutput
 from umbra.management import design_systems, memory, taste
 from umbra.unified import config as cfg
+from umbra.unified import project as proj
 from umbra.unified.events import add_event
 from umbra.unified.store import new_id, now, to_cost
 
@@ -92,11 +93,38 @@ def agent_failure(result: AgentResult) -> Outcome:
                    {"error": result.error})
 
 
+def for_run(root: Path, udir: Path, conn: sqlite3.Connection, project: dict, run_id: str,
+            **kw) -> "Engine":
+    """El engine de una ejecución. En un espacio de trabajo (spec 032), sobre el repo de su tarea:
+    worktree, comandos, rama base y política salen de ese repo; el estado, del espacio."""
+    members = proj.members(root, project)
+    if not members:
+        return Engine(root, udir, conn, project, **kw)
+    space = (root, project)
+    row = conn.execute("SELECT t.repos FROM run r JOIN task t ON t.id = r.task_id"
+                       " WHERE r.id = ?", (run_id,)).fetchone()
+    repos = json.loads(row["repos"] or "[]") if row else []
+    if len(repos) == 1 and repos[0] in members:
+        member = members[repos[0]]
+        return Engine(member, udir, conn, proj.repo_config(project, member), space=space, **kw)
+    return Engine(root, udir, conn, project, space=space, **kw)
+
+
+def root_repo(engine: "Engine") -> str:
+    """Nombre del repo del espacio sobre el que trabaja el engine ("" si es el espacio)."""
+    return engine.root.name if engine.root != engine.home else ""
+
+
 class Engine:
     def __init__(self, root: Path, udir: Path, conn: sqlite3.Connection, project: dict,
-                 guard: Callable[[], bool] = lambda: True, origin: str = "worker"):
+                 guard: Callable[[], bool] = lambda: True, origin: str = "worker",
+                 space: tuple[Path, dict] | None = None):
         self.root, self.udir, self.conn, self.project = root, udir, conn, project
         self.guard, self.origin = guard, origin
+        self.space = space  # (raíz, configuración) del espacio de trabajo, si lo hay
+        self.home = space[0] if space else root  # donde viven las specs
+        self.label = (f"{self.home.name} · {root.name}" if space and root != self.home
+                      else self.home.name)  # cómo se nombra en los avisos
 
     # ---------- utilidades ----------
     def run_row(self, run_id: str) -> sqlite3.Row:
@@ -148,8 +176,10 @@ class Engine:
                        for i, o in enumerate(details.get("options", []), 1)])
             for caption, images in albums:
                 telegram.send_photos(tg, [wt / p for p in images], caption)
+        if self.space and root_repo(self):  # el repo, en el texto; el espacio, en los botones
+            run = dict(run) | {"title": f"{root_repo(self)} · {run['title']}"}
         if mid := telegram.notify_run(self.project, run, type_, payload,
-                                      self.root.name):  # al teléfono, siempre
+                                      self.home.name):  # al teléfono, siempre
             add_event(self.conn, run_id, "telegram.sent", self.origin, message_id=mid)
 
     def deliver(self, run_id: str) -> None:
@@ -157,7 +187,8 @@ class Engine:
         from umbra.routines import console
         try:
             run = self.run_row(run_id)
-            text, photos = console.delivery(self.project, self.root, self.udir, self.conn, run)
+            text, photos = console.delivery(self.project, self.root, self.udir, self.conn, run,
+                                            self.label)
             telegram.deliver(self.project, text, photos)
         except Exception as e:  # ponytail: la entrega al teléfono nunca frena la tarea
             add_event(self.conn, run_id, "telegram.error", self.origin, error=str(e))
@@ -213,7 +244,7 @@ class Engine:
         wt = worktree.ensure(self.root, self.udir, run_id, run["branch"], run["base_sha"])
         if run["worktree"] != wt.as_posix():
             self.set_run(run_id, worktree=wt.as_posix())
-        src = self.root / run["spec_dir"] if run["spec_dir"] else None
+        src = self.home / run["spec_dir"] if run["spec_dir"] else None
         if src and src.is_dir() and not src.is_symlink():
             # enlaces simbólicos omitidos (podrían apuntar fuera del repo); se copia lo que
             # falte aunque la carpeta ya exista, sin pisar lo del worktree
@@ -956,10 +987,18 @@ class Engine:
         if left or self.operation(key):
             return
         self.ensure_lease()
-        base = self.project_base()
-        pr = gh.find_pr(self.root, branch) or gh.create_pr(
-            self.root, branch, base, f"umbra spec {Path(spec_dir).name}",
-            self.spec_pr_body(spec_dir))
+        title, body = f"umbra spec {Path(spec_dir).name}", self.spec_pr_body(spec_dir)
+        if self.space:  # un PR de spec por repo que tuvo tareas, en el orden del espacio
+            parts = []
+            for name, root in self.spec_repos(spec_dir).items():
+                base = proj.repo_config(self.space[1], root).get("project", {}).get(
+                    "base_branch", "main")
+                found = gh.find_pr(root, branch) or gh.create_pr(root, branch, base, title, body)
+                parts.append({"repo": name, **found})
+            pr = {"number": parts[0]["number"], "url": parts[0]["url"], "repos": parts}
+        else:
+            pr = gh.find_pr(self.root, branch) or gh.create_pr(
+                self.root, branch, self.project_base(), title, body)
         self.record_operation(key, "pr", "done", json.dumps(pr))
         add_event(self.conn, None, "spec.ready", self.origin, spec_dir=spec_dir, branch=branch,
                   number=pr["number"], url=pr["url"])
@@ -967,7 +1006,15 @@ class Engine:
                 and not notify.watch_open(self.conn):
             notify.send(f"umbra · spec {Path(spec_dir).name}",
                         f"todas sus historias están integradas: espera tu aprobación ({pr['url']})")
-        telegram.notify_spec(self.project, spec_dir, pr["url"], self.root.name)
+        telegram.notify_spec(self.project, spec_dir, pr["url"], self.home.name)
+
+    def spec_repos(self, spec_dir: str) -> dict[str, Path]:
+        """Los repos del espacio con tareas integradas de la spec, en el orden del espacio."""
+        used = set()
+        for r in self.conn.execute("SELECT repos FROM task WHERE spec_dir = ? AND status = 'done'",
+                                   (spec_dir,)):
+            used.update(json.loads(r["repos"] or "[]"))
+        return {n: p for n, p in proj.members(*self.space).items() if n in used}
 
     def spec_pr_body(self, spec_dir: str) -> str:
         lines = [f"Spec `{spec_dir}` construida por umbra-engine. Historias integradas en su "

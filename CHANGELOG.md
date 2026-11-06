@@ -7,6 +7,10 @@ versión publicada.
 
 ## Sin publicar
 
+- **Espacios de trabajo** para proyectos con front y back en repos separados: `umbra init` en la
+  carpeta padre los une en una sola cola, un `watch` y un Telegram. Cada historia dice su repo
+  (`**Repo**: api`) y la spec se aprueba de una vez, con un PR por repo integrado en orden.
+
 ## v0.25.0 — 2026-11-05
 
 - **Sistemas de diseño por proyecto**: un catálogo en `~/.umbra/design/` y cada proyecto elige el

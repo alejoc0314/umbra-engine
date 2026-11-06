@@ -50,6 +50,11 @@ class Ctx:
     conn: object
     config: dict
 
+    @property
+    def members(self) -> dict[str, Path]:
+        """Repos del espacio de trabajo (spec 032); vacío en un proyecto de un repo."""
+        return project.members(self.root, self.config)
+
 
 def load(start: Path | None = None) -> Ctx:
     try:
@@ -68,8 +73,71 @@ def actor() -> str:
     return getpass.getuser()
 
 
-def engine(ctx: Ctx, origin: str = "cli") -> eng.Engine:
+def engine(ctx: Ctx, origin: str = "cli", run_id: str | None = None) -> eng.Engine:
+    """Con `run_id`, el engine del repo de esa ejecución (en un espacio, el de su tarea)."""
+    if run_id:
+        return eng.for_run(ctx.root, ctx.udir, ctx.conn, ctx.config, run_id, origin=origin)
     return eng.Engine(ctx.root, ctx.udir, ctx.conn, ctx.config, origin=origin)
+
+
+def task_repos(task) -> list[str]:
+    return json.loads(task["repos"] or "[]")
+
+
+def member(ctx: Ctx, name: str) -> tuple[Path, dict]:
+    """(raíz, configuración) de un repo del espacio por su nombre."""
+    check_repos(ctx, [name], f"«{name}»")
+    try:
+        return ctx.members[name], project.repo_config(ctx.config, ctx.members[name])
+    except project.NotInitialized as e:
+        raise OpError(str(e), 2) from e
+
+
+def run_diff(ctx: Ctx, run_row) -> tuple[str, str]:
+    """(numstat, patch) de una ejecución, en el repo de su tarea."""
+    task = ctx.conn.execute("SELECT * FROM task WHERE id = ?", (run_row["task_id"],)).fetchone()
+    root = repo_of(ctx, task)[0]
+    base, head = run_row["base_sha"], run_row["head_sha"]
+    return (git.run(root, "diff", "--numstat", base, head), git.run(root, "diff", base, head))
+
+
+def check_repos(ctx: Ctx, repos: list[str], what: str) -> None:
+    """En un espacio, cada tarea dice en qué repo se hace; fuera de un espacio, ninguna."""
+    members = ctx.members
+    if not members:
+        if repos:
+            raise OpError(f"{what} declara repos ({', '.join(repos)}) pero este proyecto es un "
+                          "solo repo, no un espacio de trabajo", 2)
+        return
+    valid = ", ".join(members)
+    if not repos:
+        raise OpError(f"{what} no dice en qué repo del espacio se hace (repos: {valid})", 2)
+    if bad := [r for r in repos if r not in members]:
+        raise OpError(f"{what} nombra repos que no están en el espacio: {', '.join(bad)} "
+                      f"(repos: {valid})", 2)
+
+
+def repo_of(ctx: Ctx, task) -> tuple[Path, dict]:
+    """Repo donde trabaja la tarea y su configuración; en un proyecto de un repo, el proyecto."""
+    if not ctx.members:
+        return ctx.root, ctx.config
+    repos = task_repos(task)
+    check_repos(ctx, repos, f"la tarea {task['number']}")
+    if len(repos) > 1:
+        return ctx.root, ctx.config  # tarea entre repos (spec 033): trabaja sobre el espacio
+    return member(ctx, repos[0])
+
+
+def set_task_repos(ctx: Ctx, number: int, repos: list[str], origin: str = "cli") -> list[str]:
+    task = task_row(ctx, number)
+    check_repos(ctx, repos, f"la tarea {number}")
+    if task["status"] not in ("draft", "accepted") or ctx.conn.execute(
+            "SELECT 1 FROM run WHERE task_id = ?", (task["id"],)).fetchone():
+        raise OpError(f"la tarea {number} ya se ejecutó: su repo no se puede cambiar")
+    ctx.conn.execute("UPDATE task SET repos = ?, updated_at = ? WHERE id = ?",
+                     (json.dumps(repos), now(), task["id"]))
+    add_event(ctx.conn, None, "task.repos", origin, task=number, repos=repos)
+    return repos
 
 
 def task_row(ctx: Ctx, number: int):
@@ -161,7 +229,7 @@ def _proposed(s, steps: dict, rel: str, depends_on: list[int]) -> ProposedTask:
     return ProposedTask(
         title=f"Historia {s.id[2:]}: {s.title}", about=specfile.story_about(s.text),
         description=desc, acceptance=s.scenarios, scope=specfile.step_paths(mine),
-        priority=s.priority, depends_on=depends_on)
+        priority=s.priority, depends_on=depends_on, repos=s.repos)
 
 
 def spec_tasks(ctx: Ctx, spec_dir: Path, origin: str = "cli") -> dict:
@@ -173,6 +241,8 @@ def spec_tasks(ctx: Ctx, spec_dir: Path, origin: str = "cli") -> dict:
     existing = sorted(have.values())
     if not new:
         return {"spec_dir": rel, "created": [], "existing": existing}
+    for s in new:  # en un espacio, cada historia dice su repo; se valida todo antes de crear nada
+        check_repos(ctx, s.repos, f"la historia {s.id[2:]} ({s.title})")
 
     proposed, trace = [], []
     for i, s in enumerate(new):
@@ -292,6 +362,23 @@ def spec_tasks_update(ctx: Ctx, spec_dir: Path, origin: str = "cli") -> dict:
 
 
 # ---------- ejecuciones ----------
+def _trust(root: Path, config: dict, trust_repo_config: bool) -> None:
+    risky = [p for p in REPO_AGENT_CONFIG if (root / p).exists()]
+    trusted = config.get("policy", {}).get("trust_repo_agent_config", False)
+    if risky and not (trusted or trust_repo_config):
+        raise OpError(f"el repo {root.name} trae configuración de agentes que Claude Code cargará"
+                      f" sin preguntar: {', '.join(risky)}. Revísala y usa --trust-repo-config o "
+                      "[policy] trust_repo_agent_config = true", 5)
+
+
+def _remote_base(root: Path, base_branch: str) -> str:
+    sha = git.remote_base(root, base_branch)  # lo integrado en GitHub, no la copia local
+    if sha is None:
+        raise OpError(f"la rama base '{base_branch}' no existe o no tiene commits: haz un commit "
+                      f"inicial (o ajusta base_branch en {root.name}/.umbra/project.toml)", 2)
+    return sha
+
+
 def spec_branch(ctx: Ctx, task) -> str | None:
     """Rama de la spec de la tarea (`spec/<carpeta>`), si trabaja dentro de una."""
     if task["spec_dir"] and ctx.config.get("spec", {}).get("branch", True):
@@ -302,25 +389,20 @@ def spec_branch(ctx: Ctx, task) -> str | None:
 def run(ctx: Ctx, numbers: list[int], routine: str | None = None, new: bool = False,
         trust_repo_config: bool = False, foreground: bool = False,
         origin: str = "cli", dispatch_worker: bool = True) -> list[dict]:
-    risky = [p for p in REPO_AGENT_CONFIG if (ctx.root / p).exists()]
-    trusted = ctx.config.get("policy", {}).get("trust_repo_agent_config", False)
-    if risky and not (trusted or trust_repo_config):
-        raise OpError(f"el repo trae configuración de agentes que Claude Code cargará sin "
-                      f"preguntar: {', '.join(risky)}. Revísala y usa --trust-repo-config o "
-                      "[policy] trust_repo_agent_config = true", 5)
-    routine = routine or ctx.config.get("project", {}).get("default_routine", DEFAULT_ROUTINE)
-    try:
-        cfg.load_routine(ctx.udir, routine)
-    except cfg.ConfigError as e:
-        raise OpError(str(e)) from e
-    base_branch = ctx.config.get("project", {}).get("base_branch", "main")
-    base_sha = git.remote_base(ctx.root, base_branch)  # lo integrado en GitHub, no la copia local
-    if base_sha is None:
-        raise OpError(f"la rama base '{base_branch}' no existe o no tiene commits: haz un commit "
-                      "inicial (o ajusta base_branch en .umbra/project.toml)", 2)
+    routine_name = routine
     results = []
     for n in numbers:
         task = task_row(ctx, n)
+        root, config = repo_of(ctx, task)
+        _trust(root, config, trust_repo_config)
+        routine = routine_name or config.get("project", {}).get("default_routine",
+                                                                DEFAULT_ROUTINE)
+        try:
+            cfg.load_routine(ctx.udir, routine)
+        except cfg.ConfigError as e:
+            raise OpError(str(e)) from e
+        base_branch = config.get("project", {}).get("base_branch", "main")
+        base_sha = _remote_base(root, base_branch)
         if task["status"] != "accepted":
             raise OpError(f"la tarea {n} está en {task['status']}; solo se ejecutan tareas "
                           "aceptadas")
@@ -343,14 +425,14 @@ def run(ctx: Ctx, numbers: list[int], routine: str | None = None, new: bool = Fa
                     f"perdería el trabajo hecho. Para entender qué pasó: `umbra explain {n}`. "
                     f"Para continuar desde donde quedó: `umbra retry {n}`. Si de verdad quieres "
                     f"empezar de cero: `umbra run {n} --new`.", 4)
-            eng.cancel(engine(ctx, origin), last["id"])  # se cierra y limpia su worktree
+            eng.cancel(engine(ctx, origin, last["id"]), last["id"])  # cierra y limpia
         count = ctx.conn.execute("SELECT COUNT(*) FROM run WHERE task_id = ?",
                                  (task["id"],)).fetchone()[0]
         branch, sha = spec_branch(ctx, task), base_sha
         if branch:  # la tarea parte de (y se integra en) la rama de su spec
-            sha = git.remote_base(ctx.root, branch)
+            sha = git.remote_base(root, branch)
             if sha is None:
-                git.run(ctx.root, "push", "-q", "origin", f"{base_sha}:refs/heads/{branch}")
+                git.run(root, "push", "-q", "origin", f"{base_sha}:refs/heads/{branch}")
                 sha = base_sha
         run_id = new_id()
         ctx.conn.execute(
@@ -389,7 +471,7 @@ def cancel(ctx: Ctx, number: int, origin: str = "cli") -> str:
     """Devuelve el estado anterior (RUNNING = se detendrá en el siguiente punto seguro)."""
     run_row = latest_run(ctx, number)
     try:
-        eng.cancel(engine(ctx, origin), run_row["id"])
+        eng.cancel(engine(ctx, origin, run_row["id"]), run_row["id"])
     except eng.ApprovalError as e:
         raise OpError(str(e)) from e
     return run_row["status"]
@@ -471,14 +553,15 @@ def decide_findings(ctx: Ctx, number: int, which: list[int], decision: str, reas
             where = f" ({f['file']}:{f['line']})" if f["file"] else ""
             ctx.conn.execute(
                 "INSERT INTO task (id, number, title, about, description, acceptance, scope,"
-                " priority, status, created_at, updated_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, 3, 'draft', ?, ?)",
+                " priority, status, repos, created_at, updated_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, 3, 'draft', ?, ?, ?)",
                 (new_id(), task, f"Pendiente de la tarea {number}: {first[:70]}",
                  f"Quedó pendiente de la revisión de la tarea {number}: {first}.",
                  f"{f['message']}{where}\n\nSurgió en la revisión de la tarea {number}; se "
                  f"decidió dejarlo para después ({reason}).",
                  json.dumps([f"Resuelto: {first}"], ensure_ascii=False),
-                 json.dumps([f["file"]] if f["file"] else []), now(), now()))
+                 json.dumps([f["file"]] if f["file"] else []),
+                 task_row(ctx, number)["repos"], now(), now()))
             created.append(task)
         ctx.conn.execute("UPDATE finding SET status = ? WHERE id = ?", (decision, f["id"]))
         add_event(ctx.conn, run_row["id"], "finding.decided", origin, actor=actor(),
@@ -967,7 +1050,8 @@ def report(ctx: Ctx, number: int, data: dict) -> dict:
     changes = {"código": [0, 0, 0], "pruebas": [0, 0, 0], "documentación": [0, 0, 0]}
     if head and run_row["base_sha"]:
         try:
-            numstat = git.run(ctx.root, "diff", "--numstat", run_row["base_sha"], head)
+            numstat = git.run(repo_of(ctx, task)[0], "diff", "--numstat",
+                              run_row["base_sha"], head)
         except git.GitError:
             numstat = ""
         for line in numstat.splitlines():
@@ -1004,22 +1088,32 @@ def approve(ctx: Ctx, number: int, origin: str = "cli") -> dict:
     if run_row["status"] != "WAITING_APPROVAL":
         raise OpError(f"la ejecución está en {run_row['status']}, no en WAITING_APPROVAL")
     try:
-        result = eng.approve(engine(ctx, origin), run_row["id"], actor())
+        result = eng.approve(engine(ctx, origin, run_row["id"]), run_row["id"], actor())
     except Exception as e:  # ApprovalError/GhError/GitError: la ejecución sigue en espera
         raise OpError(str(e)) from e
-    base = ctx.config.get("project", {}).get("base_branch", "main")
-    result["pulled"] = git.fast_forward(ctx.root, base)  # tu copia de la base, al día
-    if result["pulled"] and ctx.config.get("context", {}).get("auto", True):
-        threading.Thread(target=_context_after_merge, args=(ctx.root, origin),
-                         daemon=True).start()  # el mapa se pone al día sin frenar la respuesta
+    repos = result.pop("repos", None) or [repo_of(ctx, task_row(ctx, number))]
+    result["pulled"] = _pull(ctx, repos, origin)
     started = autopilot(ctx, origin)
     result["next"] = started[0] if started else None
     return result
 
 
-def _context_after_merge(root: Path, origin: str) -> None:
+def _pull(ctx: Ctx, repos: list[tuple[Path, dict]], origin: str) -> bool:
+    """Tu copia local de la base de cada repo integrado, al día; y su mapa, sin frenar."""
+    pulled = False
+    for root, config in repos:
+        base = config.get("project", {}).get("base_branch", "main")
+        if git.fast_forward(root, base):
+            pulled = True
+            if config.get("context", {}).get("auto", True):
+                threading.Thread(target=_context_after_merge, args=(ctx.root, origin, root),
+                                 daemon=True).start()
+    return pulled
+
+
+def _context_after_merge(root: Path, origin: str, repo: Path | None = None) -> None:
     try:
-        context_build(load(root), origin)
+        context_build(load(root), origin, None if repo == root else repo)
     except Exception:  # queda registrado por context_build; nunca rompe la aprobación
         pass
 
@@ -1027,13 +1121,22 @@ def _context_after_merge(root: Path, origin: str) -> None:
 CONTEXT_FILE = "CONTEXT.md"
 
 
-def context_build(ctx: Ctx, origin: str = "cli") -> dict:
+def context_build(ctx: Ctx, origin: str = "cli", repo: Path | None = None) -> dict:
     """El cartógrafo escribe `CONTEXT.md` sobre la raíz del repo; si cambió, lo deja en un commit
-    de la rama actual. Si tocó cualquier otra cosa, se restaura y falla."""
+    de la rama actual. Si tocó cualquier otra cosa, se restaura y falla. En un espacio, sobre
+    `repo` (o sobre cada uno de sus repos)."""
     from umbra.adapters import get_adapter
     from umbra.adapters.base import AgentRun
     from umbra.contracts.envelope import Envelope, StageOutput, TaskInfo
     from umbra.unified.store import to_cost
+
+    if repo is None and ctx.members:
+        results = {name: context_build(ctx, origin, path) for name, path in ctx.members.items()}
+        return {"changed": any(r["changed"] for r in results.values()),
+                "summary": "\n".join(f"{n}: {r['summary']}" for n, r in results.items()),
+                "cost": to_cost(sum(Decimal(r["cost"]) for r in results.values())),
+                "repos": results}
+    ctx = Ctx(repo, ctx.udir, ctx.conn, ctx.config) if repo else ctx
 
     profile = cfg.load_profile(ctx.udir, "cartographer")
     before = set(git.run(ctx.root, "status", "--porcelain").splitlines())
@@ -1170,32 +1273,63 @@ def approve_spec(ctx: Ctx, ref: str, origin: str = "cli") -> dict:
                       f"{', '.join(str(r[0]) for r in left) or '(ninguna; reintenta)'}")
     if pr["state"] == "merged":
         raise OpError(f"la spec {spec_dir} ya está integrada (merge {pr['merge_sha'][:10]})")
-    try:
-        current = gh.view_pr(ctx.root, pr["number"])
-        if current["state"] != "MERGED":
-            if current.get("mergeable") == "CONFLICTING":
-                raise OpError(f"el PR #{pr['number']} de la spec tiene conflictos con la base; "
-                              "resuélvelos en la rama de la spec y vuelve a aprobar")
-            gh.merge_pr(ctx.root, pr["number"], current["headRefOid"])
-        final = gh.view_pr(ctx.root, pr["number"])
-    except gh.GhError as e:
-        raise OpError(str(e)) from e
-    merge_sha = (final.get("mergeCommit") or {}).get("oid")
-    if final["state"] != "MERGED" or not merge_sha:
-        raise OpError(f"el proveedor no confirma el merge (estado {final['state']})")
+    # en un espacio, un PR por repo, en el orden del espacio; cada uno con su clave: aprobar de
+    # nuevo tras un fallo integra solo lo que faltaba
+    parts = pr.get("repos") or [{"repo": None, "number": pr["number"], "url": pr["url"]}]
+    merged, repos, merge_sha = [], [], None
+    for part in parts:
+        name = part["repo"]
+        root, config = ((ctx.members[name], project.repo_config(ctx.config, ctx.members[name]))
+                        if name else (ctx.root, ctx.config))
+        key = f"spec:{spec_dir}:merge:{name}"
+        if name and (done := _operation(ctx, key)):
+            merge_sha = done
+            merged.append(name)
+            continue
+        where = f" de {name}" if name else ""
+        try:
+            current = gh.view_pr(root, part["number"])
+            if current["state"] != "MERGED":
+                if current.get("mergeable") == "CONFLICTING":
+                    raise OpError(f"el PR #{part['number']}{where} de la spec tiene conflictos con"
+                                  " la base; resuélvelos en la rama de la spec y vuelve a aprobar")
+                gh.merge_pr(root, part["number"], current["headRefOid"])
+            final = gh.view_pr(root, part["number"])
+            merge_sha = (final.get("mergeCommit") or {}).get("oid")
+            if final["state"] != "MERGED" or not merge_sha:
+                raise OpError(f"el proveedor no confirma el merge{where} (estado "
+                              f"{final['state']})")
+        except (OpError, gh.GhError) as e:
+            if not merged:
+                raise OpError(str(e)) from e
+            add_event(ctx.conn, None, "spec.partial", origin, spec_dir=spec_dir, merged=merged,
+                      pending=name, reason=str(e))
+            raise OpError(f"integrado en {', '.join(merged)}; falta {name}: {e}. Cuando lo "
+                          "resuelvas, aprueba de nuevo: solo se integra lo que falta") from e
+        if name:
+            _record_merge(ctx, key, merge_sha)
+            merged.append(name)
+        repos.append((root, config))
+    _record_merge(ctx, f"spec:{spec_dir}:merge", merge_sha)
+    add_event(ctx.conn, None, "spec.approved", origin, spec_dir=spec_dir, pr=pr["number"],
+              merge_sha=merge_sha, actor=actor(), repos=merged)
+    pulled = _pull(ctx, repos, origin)
+    return {"spec_dir": spec_dir, "pr": pr["url"], "merge_sha": merge_sha, "pulled": pulled,
+            "repos": [{"repo": p["repo"], "url": p["url"]} for p in parts if p["repo"]]}
+
+
+def _operation(ctx: Ctx, key: str) -> str | None:
+    row = ctx.conn.execute("SELECT external_ref FROM operation WHERE operation_key = ? AND"
+                           " status = 'done'", (key,)).fetchone()
+    return row[0] if row else None
+
+
+def _record_merge(ctx: Ctx, key: str, merge_sha: str) -> None:
     ctx.conn.execute(
         "INSERT INTO operation (operation_key, kind, status, external_ref, updated_at)"
         " VALUES (?, 'merge', 'done', ?, ?) ON CONFLICT(operation_key) DO UPDATE SET"
         " status = 'done', external_ref = excluded.external_ref, updated_at = excluded.updated_at",
-        (f"spec:{spec_dir}:merge", merge_sha, now()))
-    add_event(ctx.conn, None, "spec.approved", origin, spec_dir=spec_dir, pr=pr["number"],
-              merge_sha=merge_sha, actor=actor())
-    base = ctx.config.get("project", {}).get("base_branch", "main")
-    pulled = git.fast_forward(ctx.root, base)
-    if pulled and ctx.config.get("context", {}).get("auto", True):
-        threading.Thread(target=_context_after_merge, args=(ctx.root, origin),
-                         daemon=True).start()
-    return {"spec_dir": spec_dir, "pr": pr["url"], "merge_sha": merge_sha, "pulled": pulled}
+        (key, merge_sha, now()))
 
 
 def night(ctx: Ctx, ref: str | None = None, origin: str = "cli") -> dict:
@@ -1219,7 +1353,7 @@ def night(ctx: Ctx, ref: str | None = None, origin: str = "cli") -> dict:
 def reject(ctx: Ctx, number: int, reason: str, origin: str = "cli") -> None:
     run_row = latest_run(ctx, number)
     try:
-        eng.reject(engine(ctx, origin), run_row["id"], actor(), reason)
+        eng.reject(engine(ctx, origin, run_row["id"]), run_row["id"], actor(), reason)
     except eng.ApprovalError as e:
         raise OpError(str(e)) from e
 
@@ -1335,6 +1469,8 @@ def preflight(ctx: Ctx, confirm=None) -> None:
     if (ctx.root / ".specify").is_dir():
         return
     cmd = ["specify", "init", "--here", "--ai", "claude", "--script", spec_script()]
+    if ctx.members:  # la carpeta de un espacio no es (ni debe volverse) un repo
+        cmd.append("--no-git")
     text = " ".join(cmd)
     specify = shutil.which("specify")
     if not specify:

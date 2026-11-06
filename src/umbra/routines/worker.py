@@ -15,11 +15,11 @@ from pathlib import Path
 from umbra.adapters import UnknownAgent
 from umbra.blocks import lease
 from umbra.blocks.process import background_kwargs
-from umbra.routines.engine import Engine, LeaseLost
+from umbra.routines.engine import LeaseLost, for_run
 from umbra.unified import project as proj
 from umbra.unified.agents import AgentNotVerified
 from umbra.unified.events import add_event
-from umbra.unified.store import open_store
+from umbra.unified.store import now, open_store
 
 LEASE = "worker"
 HEARTBEAT_S = 20
@@ -44,14 +44,15 @@ def pending_run(conn, busy: tuple[str, ...] = ()) -> str | None:
 def run_one(root: Path, udir: Path, project: dict, token: int, run_id: str,
             lost: threading.Event) -> None:
     conn = open_store(udir)
-    engine = Engine(root, udir, conn, project, guard=lambda: lease.holds(conn, LEASE, token))
     try:
-        engine.process(run_id)
+        for_run(root, udir, conn, project, run_id,
+                guard=lambda: lease.holds(conn, LEASE, token)).process(run_id)
     except LeaseLost:
         lost.set()
         return
     except Exception as e:  # un fallo de una ejecución no tumba el worker
-        engine.set_run(run_id, status="FAILED")
+        conn.execute("UPDATE run SET status = 'FAILED', updated_at = ? WHERE id = ?",
+                     (now(), run_id))
         code = ("agent_not_verified" if isinstance(e, AgentNotVerified)
                 else "agent_unknown" if isinstance(e, UnknownAgent) else "internal_error")
         add_event(conn, run_id, "run.failed", "worker", reason=str(e), code=code,
