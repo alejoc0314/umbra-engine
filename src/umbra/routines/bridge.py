@@ -709,8 +709,10 @@ def command(state: State, text: str, who: str) -> str:
             if arg in state.roots:
                 state.current = arg
             say(f"umbra adoptó {r['root']} ({r['stack']}): " + ", ".join(r["steps"])
-                + f".\nProyecto actual: {state.current}.\nAntes de trabajar en él, "
-                "¿lo estudio a fondo? /onboarding")
+                + f".\nProyecto actual: {state.current}.\n"
+                + ("Cada historia de una spec dice en qué repo se hace (**Repo**: nombre). "
+                   "Empieza con /spec." if r.get("workspace") else
+                   "Antes de trabajar en él, ¿lo estudio a fondo? /onboarding"))
         return _job(state, adopt, say) or f"Adoptando {arg}…"
     if word == "nuevo_proyecto":
         parts = arg.split(maxsplit=2)
