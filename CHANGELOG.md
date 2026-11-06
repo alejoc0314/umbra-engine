@@ -7,6 +7,9 @@ versión publicada.
 
 ## Sin publicar
 
+- `/replicar` ya no falla por los registros que el navegador deja en `.playwright-mcp/`: se borran
+  al terminar, porque no son parte de la réplica.
+
 ## v0.26.3 — 2026-11-05
 
 - Abrir a la vez un proyecto nuevo desde dos sitios (el puente y una tarea, por ejemplo) ya no

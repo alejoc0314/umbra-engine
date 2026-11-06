@@ -143,6 +143,8 @@ elif mode in ("replicate", "replicate_stray"):  # visita la app y deja la répli
     Path("design/actual/inicio.png").write_bytes(b"\x89PNG fake")
     Path("design/actual/indice.md").write_text("| Vista | Ruta |\n| Inicio | / |\n")
     Path("design/sistema.md").write_text("# Sistema\n\nPrimario #001E62\n")
+    Path(".playwright-mcp").mkdir(exist_ok=True)  # como el MCP real: consola e instantáneas
+    Path(".playwright-mcp/console-1.log").write_text("[info] ok\n")
     if mode == "replicate_stray":
         calc.write_text("def add(a, b):\n    return 42\n")
     structured_images = ["design/actual/inicio.png"]

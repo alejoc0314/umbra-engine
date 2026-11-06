@@ -7,6 +7,7 @@ pide cambios) → `hecho`. Nada se confirma sin la aprobación de la persona."""
 
 import json
 import re
+import shutil
 import threading
 from collections import Counter
 from datetime import UTC, datetime
@@ -23,6 +24,7 @@ from umbra.unified.store import new_id, to_cost
 DIR = "artifacts/onboarding"  # notas de trabajo: ignoradas por git (lo que queda va al repo)
 MAX_QUESTIONS = 8
 NOTE_CHARS = 9000  # por nota, en el sobre del redactor
+PLAYWRIGHT_SCRATCH = ".playwright-mcp"  # donde el MCP de Playwright deja consola e instantáneas
 ARTIFACTS = ("CONTEXT.md", ".specify/memory/constitution.md", "specs/000-linea-base/")
 FOCUS = {
     "arquitectura": "Arquitectura: capas y módulos, cómo se relacionan, el recorrido de una "
@@ -211,7 +213,13 @@ def agent(root: Path, udir: Path, profile_name: str, title: str, description: st
     req = AgentRun(envelope, profile, root,
                    udir / "artifacts" / f"{invocation}-onboarding.jsonl",
                    output_model=output_model or StageOutput)
-    return get_adapter(profile.agent, udir).run(req), invocation
+    scratch = root / PLAYWRIGHT_SCRATCH  # registros e instantáneas del navegador: no son trabajo
+    existed = scratch.exists()
+    try:
+        return get_adapter(profile.agent, udir).run(req), invocation
+    finally:
+        if app_url and not existed:
+            shutil.rmtree(scratch, ignore_errors=True)
 
 
 def record_usage(conn, result, invocation: str, agent_name: str = "claude-code") -> None:
