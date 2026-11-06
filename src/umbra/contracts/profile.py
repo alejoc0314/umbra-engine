@@ -5,7 +5,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-ACTIONS = ("read", "search", "edit", "run_tests", "run_lint", "browse", "render")
+# shell: comandos libres (preparar la app: seeds locales, servicios); git de escritura vetado
+ACTIONS = ("read", "search", "edit", "run_tests", "run_lint", "browse", "render", "shell")
 
 
 class Limits(BaseModel):

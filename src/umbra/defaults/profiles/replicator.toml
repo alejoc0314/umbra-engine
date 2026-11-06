@@ -3,11 +3,14 @@ agent         = "claude-code"
 roles         = ["design"]
 model         = "sonnet"
 instructions  = "replicator.md"
-# browse: la app levantada en el navegador. Tu herramienta de diseño llega con [design.mcp.*].
-actions       = ["read", "search", "edit", "browse"]
+# browse: la app levantada en el navegador, con red simulable (browser_route).
+# shell: preparar la app con los medios del proyecto (seeds locales, servicios que falten);
+# git que cambie algo está vetado. Solo escribe en design/ (en un espacio, el del repo de la
+# app: umbra ajusta la ruta). Tu herramienta de diseño llega con [design.mcp.*].
+actions       = ["read", "search", "edit", "browse", "shell"]
 allowed_paths = ["design/**"]
 output        = "stage-output/v1"
 
 [limits]
-max_minutes  = 40
-max_cost_usd = 6.00
+max_minutes  = 60
+max_cost_usd = 10.00
