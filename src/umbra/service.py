@@ -824,6 +824,19 @@ def adopt(folder: Path, origin: str = "cli") -> dict:
     if not folder.is_dir():
         raise OpError(f"no existe la carpeta {folder}", 2)
     steps = []
+    repos = [] if (folder / ".git").exists() else project.child_repos(folder)
+    if len(repos) >= 2:  # front y back en repos hermanos: un espacio, no un repo que los envuelva
+        try:
+            result = project.init_workspace(folder.resolve(), repos)
+        except project.NotInitialized as e:
+            raise OpError(str(e), 2) from e
+        steps.append(f"espacio de trabajo con {', '.join(repos)}")
+        ctx = load(folder)
+        try:
+            add_event(ctx.conn, None, "project.adopted", origin, steps=steps)
+        finally:
+            ctx.conn.close()
+        return {**result, "steps": steps}
     if not (folder / ".git").exists():
         git.run(folder, "init", "-q", "-b", "main")
         steps.append("git init")

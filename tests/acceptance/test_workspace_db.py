@@ -70,6 +70,22 @@ def test_adopting_a_plain_folder_creates_repo_and_switches(env, tg, tmp_path):
     assert "No hay una carpeta" in tg.sent[-1]["text"]
 
 
+def test_adopting_a_folder_with_two_repos_creates_a_workspace(env, tg, tmp_path):
+    folder = tmp_path / "tienda"
+    for name in ("api", "front"):
+        repo = folder / name
+        repo.mkdir(parents=True)
+        subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
+    tg.say("/adoptar tienda")
+    st = poll(env, tg)
+    wait(lambda: st.current == "tienda")
+    wait(lambda: "umbra adoptó" in tg.sent[-1]["text"])
+    assert "espacio de trabajo con api, front" in tg.sent[-1]["text"]
+    assert not (folder / ".git").exists()  # la carpeta padre no se vuelve un repo
+    assert "repos = [\"api\", \"front\"]" in (folder / ".umbra" / "project.toml").read_text()
+    assert (folder / "api" / ".umbra" / "project.toml").is_file()
+
+
 def test_conversation_knows_other_projects_and_can_switch(env, tg, tmp_path, monkeypatch):
     other = twin(env, tmp_path, "otro")
     fake, calls = answers("Eso es de otro.\nUMBRA> usar otro", "Listo en otro.")
