@@ -388,7 +388,7 @@ class Engine:
                                  " AND tested_sha = ?", (run_id, fp)).fetchone():
                 return Outcome("next")  # ya explorado con esta base: se reutiliza
             md, summary = explore.explore(self.conn, ps, self.task_info(run), self.project,
-                                          run_id=run_id)
+                                          run_id=run_id, lesson_key=lessons.key_for(self))
             summary = {"fingerprint": fp, **summary}
             out = self.udir / "artifacts"
             out.mkdir(parents=True, exist_ok=True)

@@ -120,6 +120,40 @@ def test_spec_ready_arrives_and_one_tap_merges_it(env, tg):
     assert "integrada" in tg.sent[-1]["text"]
 
 
+def test_lessons_from_the_phone(env, tg):
+    from umbra.management import lessons
+    env.mode("noop", "ok", "ok", "noop")
+    env.codex_mode("high:falta validar entradas", "clean")
+    task(env)
+    env.umbra("run", "1", "-r", "feature", "--foreground")
+    sync_worker(env)
+    st = poll(env, tg)
+    poll(env, tg, st)
+    notices = [m["text"] for m in tg.sent if "por decidir" in m["text"]]
+    assert notices == ["umbra · repo · Hay 1 lección nueva por decidir. /lecciones las "
+                       "muestra con sus botones."]  # un único aviso por cosecha
+    tg.say("/lecciones")
+    poll(env, tg, st)
+    assert "falta validar entradas" in tg.sent[-1]["text"]
+    assert tg.buttons() == [("Aprobar", "lap:1@repo"), ("Descartar", "ldi:1@repo"),
+                            ("Ver", "lver:1@repo")]
+    before = len(tg.sent)
+    tg.tap("lap:1@repo", chat=99)  # otro chat: ni caso
+    poll(env, tg)
+    db = lessons.open_db()
+    assert db.execute("SELECT status FROM lesson").fetchone()[0] == "proposed"
+    assert len(tg.sent) == before
+    tg.tap("lver:1@repo")
+    poll(env, tg)
+    assert "L1 · propuesta" in tg.sent[-1]["text"]
+    tg.tap("lap:1@repo")
+    poll(env, tg)
+    assert "L1 aprobada" in tg.sent[-1]["text"]
+    row = db.execute("SELECT actor, channel FROM lesson_history WHERE action = 'approved'"
+                     ).fetchone()
+    assert tuple(row) == ("alejandro", f"telegram:{CHAT}")
+
+
 def test_bridge_stop(env, tg):
     assert env.umbra("bridge", "--stop").output.strip() == "no había ningún puente"
     bridge._beat()

@@ -1,14 +1,15 @@
 """Lo que `umbra watch` muestra, calculado fuera del hilo de la pantalla.
 
-`Loader` tiene su propia conexión y se usa desde un solo worker a la vez. Antes de consultar nada
-mira `PRAGMA data_version`: si nadie escribió desde la última vez y la persona no cambió de tarea ni
-de pestaña, no hay nada que recalcular (salvo el registro del agente en curso, que se sigue por
-tamaño de archivo). Cuando sí hay cambios, lee cada tabla una sola vez (nunca una consulta por
-tarea) y devuelve una instantánea que la pantalla aplica de forma incremental.
+`Loader` tiene su propia conexión y un cerrojo: un solo refresco la usa a la vez. Antes de
+consultar nada mira `PRAGMA data_version`: si nadie escribió desde la última vez y la persona no
+cambió de tarea ni de pestaña, no hay nada que recalcular (salvo el registro del agente en curso,
+que se sigue por tamaño de archivo). Cuando sí hay cambios, lee cada tabla una sola vez (nunca una
+consulta por tarea) y devuelve una instantánea que la pantalla aplica de forma incremental.
 """
 
 import io
 import json
+import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -21,11 +22,12 @@ from umbra.actions import git
 from umbra.blocks.lease import _ts
 from umbra.cli import agent_story, theme
 from umbra.management import memory
-from umbra.unified import clock
+from umbra.unified import clock, project
 from umbra.unified import explain as ex
 from umbra.unified.store import _unpriced, data_version, open_store
 
 ATTENTION = {"BLOCKED", "FAILED", "WAITING_APPROVAL"}
+LESSONS_EVERY = 10.0  # segundos entre consultas de lecciones por decidir
 WORKING = {"RUNNING", "QUEUED", "PAUSED"}
 GROUPS = ("Te necesitan", "En marcha", "Por hacer", "Terminadas")
 PATCH_CHARS = 60_000
@@ -71,6 +73,7 @@ class HeaderInfo:
     spend: str
     attention: int
     tasks: int
+    lessons: int = 0  # lecciones por decidir (spec 035)
 
 
 @dataclass
@@ -121,29 +124,44 @@ def report_ansi(data: dict, width: int = EVIDENCE_WIDTH, raw: bool = False) -> s
 
 
 class Loader:
-    def __init__(self, udir: Path):
+    def __init__(self, udir: Path, on_lessons=None):
         self.udir, self.root = udir, udir.parent
-        self.conn = open_store(udir, same_thread=False)  # solo la usa el worker exclusivo
+        self.conn = open_store(udir, same_thread=False)  # solo la usa un refresco a la vez
+        # «exclusive» no detiene un worker de hilo ya lanzado: sin el cerrojo, dos refrescos
+        # compartirían la conexión y una consulta pisada devolvería None
+        self.busy = threading.Lock()
         self.version: int | None = None
         self.explained: dict[int, tuple[tuple, ex.Explanation]] = {}
         self.seen: tuple | None = None  # (selected, raw, pestaña)
         self.extras: dict[tuple, object] = {}  # (tipo, run_id, head) → calculado
         self.agent_path: Path | None = None
         self.agent_offset = 0
+        self.lessons_at, self.lessons_pending = 0.0, 0  # lessons.db vive fuera del proyecto
+        self.lessons_busy = self.lessons_changed = False  # el conteo corre en su propio hilo
+        self.lessons_thread = None
+        self.on_lessons = on_lessons  # avisa (desde el hilo del conteo) cuando el número cambia
+        self._lessons()  # arranca ya: el primer conteo corre mientras se monta la pantalla
         self.width = EVIDENCE_WIDTH  # ancho al que se envuelve el informe (lo fija la pantalla)
 
     def close(self) -> None:
-        self.conn.close()
+        with self.busy:
+            self.conn.close()
 
     def load(self, selected: int | None, raw: bool, shown_run: str | None, last_seq: int,
              force: bool = False, want: str = "situation") -> Snapshot | None:
         """None = nada cambió desde la última instantánea."""
+        with self.busy:
+            return self._load(selected, raw, shown_run, last_seq, force, want)
+
+    def _load(self, selected: int | None, raw: bool, shown_run: str | None, last_seq: int,
+              force: bool, want: str) -> Snapshot | None:
         conn = self.conn
         version = data_version(conn)
         if selected is None:
             selected = self._default_selection()
-        unchanged = version == self.version and self.seen == (selected, raw, want)
-        self.version, self.seen = version, (selected, raw, want)
+        unchanged = version == self.version and self.seen == (selected, raw, want) \
+            and not self.lessons_changed
+        self.version, self.seen, self.lessons_changed = version, (selected, raw, want), False
         if unchanged and not force:
             return self._agent_only(selected) if want == "agent" else None
         run = self._run(selected) if selected is not None else None
@@ -209,7 +227,31 @@ class Loader:
             total += Decimal(u["cost"] or 0)
             tokens += _unpriced(u)
         return HeaderInfo(alive, queued, ex.spend_text(total, tokens),
-                          sum(t.group == 0 for t in tasks), len(tasks))
+                          sum(t.group == 0 for t in tasks), len(tasks), self._lessons())
+
+    def _lessons(self) -> int:
+        """Las lecciones por decidir; se cuentan en un hilo aparte (git y lessons.db no frenan
+        la pantalla) como mucho cada LESSONS_EVERY segundos. Devuelve el último número."""
+        import time
+        if not self.lessons_busy and time.monotonic() - self.lessons_at >= LESSONS_EVERY:
+            self.lessons_at, self.lessons_busy = time.monotonic(), True
+            self.lessons_thread = threading.Thread(target=self._count_lessons, daemon=True)
+            self.lessons_thread.start()
+        return self.lessons_pending
+
+    def _count_lessons(self) -> None:
+        """Nadie lo espera: la primera carga sale sin él y on_lessons repinta la cabecera."""
+        try:
+            ctx = service.Ctx(self.root, self.udir, None, project.load_project(self.root))
+            count = service.lesson_pending(ctx)
+        except Exception:  # noqa: BLE001 — sin lessons.db, la cabecera no lo menciona
+            count = 0
+        changed = count != self.lessons_pending
+        if changed:
+            self.lessons_pending, self.lessons_changed = count, True
+        self.lessons_busy = False
+        if changed and self.on_lessons is not None:
+            self.on_lessons()
 
     def _tasks(self) -> list[TaskRow]:
         conn = self.conn
