@@ -23,12 +23,15 @@ RUN_STATES = {
     "CANCELLED": "Cancelada",
     "SUCCEEDED": "Integrada",
 }
-STAGES = {"plan": "Planificar", "design": "Diseñar", "critic": "Criticar el diseño",
+STAGES = {"explore": "Explorar", "plan": "Planificar", "design": "Diseñar",
+          "critic": "Criticar el diseño",
           "build": "Construir", "review": "Revisar",
           "verify": "Verificar", "scan": "Escanear seguridad", "ship": "Entregar",
           "arbiter": "Arbitrar",
           "summary": "Resumir"}
 STAGE_PURPOSE = {
+    "explore": "umbra reúne, sin modelo, los archivos, tests, historia y tareas anteriores de "
+               "la zona que toca la tarea",
     "plan": "un agente lee el código y decide cómo abordar la tarea",
     "design": "si la tarea toca la interfaz, un agente diseñador la diseña y tú das el visto "
               "bueno antes de construir",
@@ -564,6 +567,8 @@ def explain_number(conn, udir, task) -> Explanation:
                 "SELECT 1 FROM event WHERE run_id = ? AND type = 'design.ready' LIMIT 1",
                 (run["id"],)).fetchone():
             stages.remove("design")  # solo las tareas que se diseñan muestran esa etapa
+        if "explore" in stages and run["stage"] != "explore":
+            stages.remove("explore")  # dura un instante y no usa modelo: solo se ve mientras corre
     exp = explain_task(conn, task, run, stages, pending_dependencies(conn, task["id"]),
                        _policy_now(udir, run) if run and run["status"] == "BLOCKED" else None)
     exp.about = about(conn, task, run, udir.parent)

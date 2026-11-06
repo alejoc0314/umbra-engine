@@ -20,7 +20,7 @@ from umbra.contracts.envelope import Envelope, Finding, StageOutput, TaskInfo
 from umbra.contracts.profile import McpServer, Profile
 from umbra.contracts.routine import Stage
 from umbra.contracts.summary import SummaryOutput
-from umbra.management import design_systems, memory, taste
+from umbra.management import design_systems, explore, memory, taste
 from umbra.routines import parts as pt
 from umbra.unified import config as cfg
 from umbra.unified import project as proj
@@ -38,6 +38,7 @@ DIFF_CHARS = 60_000
 SEVERITY = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 ALERTS = {"run.waiting_approval": "espera tu aprobación",  # cuándo umbra necesita a la persona
           "run.blocked": "se detuvo y necesita tu decisión", "run.failed": "falló"}
+CONTEXT_STAGES = ("plan", "design", "build", "review", "verify", "arbiter")  # reciben el paquete
 DECIDED = {"waived": "no aplica", "deferred": "se hará después en otra tarea"}
 RETRY_GUIDANCE = {
     "policy": "Deja los tests existentes y las rutas protegidas exactamente como están en la rama "
@@ -336,6 +337,8 @@ class Engine:
         return status
 
     def run_stage(self, run_id: str, stage: Stage, wt: Path) -> Outcome:
+        if stage.name == "explore":
+            return self.explore_stage(run_id)
         if stage.name == "plan":
             return self.plan(run_id, stage, wt)
         if stage.name == "design":
@@ -354,6 +357,61 @@ class Engine:
         self.conn.execute("UPDATE attempt SET status = 'interrupted', ended_at = ?"
                           " WHERE run_id = ? AND stage = ? AND status = 'running'",
                           (now(), run_id, stage))
+
+    # ---------- EXPLORE ----------
+    def explore_stage(self, run_id: str) -> Outcome:
+        """El paquete de contexto de la tarea (spec 035): sin modelo, una vez por huella de los
+        SHA base. Nunca frena la tarea: si algo falla, lo anota y sigue."""
+        try:
+            run = self.run_row(run_id)
+            ps = self.parts(run)
+            fp = pt.fingerprint({p.repo: p.base_sha for p in ps}) or ""
+            if self.conn.execute("SELECT 1 FROM artifact WHERE run_id = ? AND kind = 'context'"
+                                 " AND tested_sha = ?", (run_id, fp)).fetchone():
+                return Outcome("next")  # ya explorado con esta base: se reutiliza
+            md, summary = explore.explore(self.conn, ps, self.task_info(run), self.project,
+                                          run_id=run_id)
+            summary = {"fingerprint": fp, **summary}
+            out = self.udir / "artifacts"
+            out.mkdir(parents=True, exist_ok=True)
+            path = out / f"{run_id}-context-{fp[:8]}.md"
+            path.write_text(md, encoding="utf-8")
+            path.with_suffix(".json").write_text(json.dumps(summary, ensure_ascii=False,
+                                                            indent=2), encoding="utf-8")
+            self.conn.execute(
+                "INSERT INTO artifact (id, run_id, kind, path, checksum, tested_sha, command,"
+                " created_at) VALUES (?, ?, 'context', ?, ?, ?, 'explore', ?)",
+                (new_id(), run_id, path.as_posix(), hashlib.sha256(md.encode()).hexdigest(),
+                 fp, now()))
+            self.event(run_id, "explore.ready", **summary)
+        except Exception as e:  # noqa: BLE001 — explorar ayuda, pero nunca bloquea
+            self.event(run_id, "explore.failed", reason=str(e) or type(e).__name__)
+        return Outcome("next")
+
+    def context(self, run_id: str) -> str | None:
+        """El último paquete de contexto de la ejecución, si lo hay."""
+        row = self.conn.execute("SELECT path FROM artifact WHERE run_id = ? AND kind = 'context'"
+                                " ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                                (run_id,)).fetchone()
+        path = Path(row["path"]) if row else None
+        return path.read_text(encoding="utf-8") if path and path.is_file() else None
+
+    def task_info(self, run) -> TaskInfo:
+        return TaskInfo(number=run["number"], title=run["title"], description=run["description"],
+                        acceptance=json.loads(run["acceptance"]), scope=json.loads(run["scope"]))
+
+    def record_files(self, run_id: str, ps: list[pt.Part], heads: dict[str, str]) -> None:
+        """Los archivos que cambió la ejecución, para encontrarla desde la zona de otra tarea."""
+        rows = []
+        for p in ps:
+            try:
+                names = git.run(p.wt, "diff", "--name-only", p.base_sha, heads[p.repo])
+            except git.GitError:
+                continue
+            rows += [(run_id, p.repo, n) for n in names.splitlines() if n]
+        self.conn.execute("DELETE FROM run_file WHERE run_id = ?", (run_id,))
+        self.conn.executemany("INSERT OR IGNORE INTO run_file (run_id, repo, path)"
+                              " VALUES (?, ?, ?)", rows)
 
     # ---------- PLAN ----------
     def plan(self, run_id: str, stage: Stage, wt: Path) -> Outcome:
@@ -626,6 +684,7 @@ class Engine:
             if not failed:
                 self.finish_attempt(attempt_id, "done")
                 self.save_heads(run_id, heads)
+                self.record_files(run_id, ps, heads)
                 return Outcome("next")
             self.finish_attempt(attempt_id, "tests_failed")
             p, test = failed[0]
@@ -960,10 +1019,8 @@ class Engine:
         envelope = Envelope(
             run_id=run["id"], stage=stage, attempt_id=attempt_id,
             input_sha=pt.fingerprint(self.heads(ps)),
-            task=TaskInfo(number=run["number"], title=run["title"],
-                          description=run["description"],
-                          acceptance=json.loads(run["acceptance"]),
-                          scope=json.loads(run["scope"])),
+            task=self.task_info(run),
+            context=self.context(run["id"]) if stage in CONTEXT_STAGES else None,
             plan=json.loads(plan["payload"])["plan"] if plan and stage in ("build", "summary")
             else None,
             diff=diff, feedback=feedback or [], findings=previous or [],

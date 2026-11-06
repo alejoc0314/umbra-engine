@@ -42,6 +42,7 @@ class Envelope(BaseModel):
     app_url: str | None = None  # VERIFY con navegador: la app de desarrollo ya levantada
     screenshots_dir: str | None = None  # dónde dejar las capturas (fuera del workspace)
     design: list[str] = Field(default_factory=list)  # pantallas aprobadas (rutas del workspace)
+    context: str | None = None  # paquete de Explorar para esta tarea (con tope)
 
 
 class DesignOption(BaseModel):

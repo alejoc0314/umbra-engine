@@ -17,6 +17,17 @@ class ConfigError(Exception):
     pass
 
 
+CONTEXT_MAX_CHARS = 12_000  # tope del paquete de Explorar (spec 035)
+
+
+def context_limit(config: dict) -> int:
+    """`[context] max_chars` del proyecto; si no es un entero positivo, el valor por defecto."""
+    value = (config.get("context") or {}).get("max_chars", CONTEXT_MAX_CHARS)
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        return CONTEXT_MAX_CHARS
+    return value
+
+
 def umbra_home() -> Path:
     return Path(os.environ.get("UMBRA_HOME", Path.home() / ".umbra"))
 
