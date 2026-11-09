@@ -44,3 +44,12 @@ def test_parse_ok_failed_and_missing():
     assert not failed.ok and failed.error == "x"
     assert not parse(events, None).ok
     assert "inválida" in parse(events, "nope").error
+
+
+def test_build_command_resumes_a_cut_session(tmp_path):
+    import dataclasses
+    req = dataclasses.replace(make_req(tmp_path, actions=["read"]), resume_session="t-9")
+    cmd = build_command(req, tmp_path / "s.json", tmp_path / "l.json")
+    assert cmd[:4] == ["codex", "exec", "resume", "--json"]
+    assert 'sandbox_mode="read-only"' in cmd and "-s" not in cmd  # resume no acepta -s
+    assert cmd[-2:] == ["t-9", "-"]

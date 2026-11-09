@@ -7,6 +7,10 @@ versión publicada.
 
 ## Sin publicar
 
+- **Menos tareas detenidas por tiempo**: un agente que avanza ya no se corta por el reloj; se corta
+  si pasa un buen rato sin dar señales de vida. Al cortarse, umbra retoma su misma sesión una vez
+  y, en la revisión, si Codex se queda sin tiempo revisa Claude. Solo si todo eso falla se detiene.
+
 ## v0.27.1 — 2026-11-06
 
 - Si el modelo de un agente agota su gasto o su cuota (por ejemplo, Fable sin gasto del mes), umbra
