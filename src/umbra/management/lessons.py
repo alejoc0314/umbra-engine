@@ -6,6 +6,7 @@ propuesta nunca entra en el contexto de una tarea."""
 
 import fnmatch
 import hashlib
+import itertools
 import json
 import re
 import sqlite3
@@ -95,15 +96,24 @@ def project_key(roots) -> str:
     return _combine(_repo_key(Path(r)) for r in roots)
 
 
+def _former_keys(roots) -> tuple[str, list[str]]:
+    """La clave vigente y todas las que pudo tener antes el mismo conjunto de repos: cada repo
+    con commits pudo estar sin ellos (clave `path:`), en cualquier combinación."""
+    keys = [_repo_key(Path(r)) for r in roots]
+    current = _combine(keys)
+    choices = [(k,) if k.startswith("path:") else (k, _path_key(Path(r)))
+               for r, k in zip(roots, keys, strict=True)]
+    olds = [_combine(c) for c in itertools.product(*choices)]
+    return current, [o for o in dict.fromkeys(olds) if o != current]
+
+
 def migrate(db: sqlite3.Connection, roots) -> str:
     """Un repo que recibe su primer commit cambia de clave (`path:` → primer commit): sus
     lecciones pasan a la clave nueva (renumeradas tras las que ya tuviera) y queda un alias.
-    En un espacio, la clave antigua es la de sustituir un repo con commits por su `path:`.
-    Idempotente. Devuelve la clave vigente sin resolver alias."""
-    keys = {Path(r): _repo_key(Path(r)) for r in roots}
-    current = _combine(keys.values())
-    olds = [_combine([_path_key(r) if r == root else k for r, k in keys.items()])
-            for root, k in keys.items() if not k.startswith("path:")]
+    En un espacio se revisan todas las combinaciones de repos que pudieron estar sin commits,
+    así que vale aunque varios reciban su primer commit entre dos consultas. Idempotente.
+    Devuelve la clave vigente sin resolver alias."""
+    current, olds = _former_keys(roots)
     for old in olds:
         if old == current or not db.execute(
                 "SELECT 1 FROM lesson WHERE project_key = ? LIMIT 1", (old,)).fetchone():
@@ -125,6 +135,9 @@ def migrate(db: sqlite3.Connection, roots) -> str:
                                    row["conflicts"])]), current, n + offset))
             db.execute("INSERT OR REPLACE INTO lesson_meta (key, value) VALUES (?, ?)",
                        (f"alias:{old}", current))
+            # los alias que apuntaban a la clave que acaba de migrar siguen a la nueva
+            db.execute("UPDATE lesson_meta SET value = ? WHERE key LIKE 'alias:%' AND value = ?",
+                       (current, old))
             db.execute("COMMIT")
         except BaseException:
             db.execute("ROLLBACK")
@@ -133,9 +146,15 @@ def migrate(db: sqlite3.Connection, roots) -> str:
 
 
 def resolve(db: sqlite3.Connection, key: str) -> str:
-    """La clave vigente: una clave migrada (de ruta a primer commit) apunta a la nueva."""
-    row = db.execute("SELECT value FROM lesson_meta WHERE key = ?", (f"alias:{key}",)).fetchone()
-    return row["value"] if row else key
+    """La clave vigente: una clave migrada (de ruta a primer commit) apunta a la nueva, y se
+    sigue la cadena si la nueva migró a su vez."""
+    for _ in range(16):  # acotado: una cadena de alias nunca debería ser larga ni cíclica
+        row = db.execute("SELECT value FROM lesson_meta WHERE key = ?",
+                         (f"alias:{key}",)).fetchone()
+        if row is None or row["value"] == key:
+            break
+        key = row["value"]
+    return key
 
 
 def redact(text: str) -> str:

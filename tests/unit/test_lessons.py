@@ -419,6 +419,46 @@ def test_migrate_renumbers_when_the_new_key_already_has_lessons(git_repo):
     assert db.execute("SELECT number FROM lesson_origin WHERE event_id = 1").fetchone()[0] == 2
 
 
+def _empty_repo(path):
+    path.mkdir()
+    git(path, "init", "-q", "-b", "main")
+    git(path, "config", "user.email", "t@u.l")
+    git(path, "config", "user.name", "t")
+    return path
+
+
+def test_space_keeps_its_lessons_when_two_repos_get_their_first_commit(tmp_path):
+    a, b = _empty_repo(tmp_path / "a"), _empty_repo(tmp_path / "b")
+    db = lessons.open_db()
+    old = lessons.project_key([a, b])
+    assert old.startswith("space:")
+    lessons.record(db, old, LessonDraft(text="Valida entradas"), [origin(1)], "espacio")
+    committed(a)
+    committed(b)  # los dos cambian de clave antes de volver a consultar
+    new = lessons.migrate(db, [a, b])
+    assert new == lessons.project_key([a, b]) and new != old
+    assert lessons.resolve(db, old) == new
+    assert [i["id"] for i in lessons.list_(db, new)] == ["L1"]
+    assert db.execute("SELECT COUNT(*) FROM lesson").fetchone()[0] == 1
+
+
+def test_space_migration_follows_one_repo_at_a_time(tmp_path):
+    a, b = _empty_repo(tmp_path / "a"), _empty_repo(tmp_path / "b")
+    db = lessons.open_db()
+    first = lessons.project_key([a, b])
+    lessons.record(db, first, LessonDraft(text="Valida entradas"), [origin(1)], "espacio")
+    committed(a)
+    second = lessons.migrate(db, [a, b])
+    lessons.record(db, second, LessonDraft(text="No uses floats"), [origin(2)], "espacio")
+    committed(b)
+    third = lessons.migrate(db, [a, b])
+    assert len({first, second, third}) == 3
+    assert [i["id"] for i in lessons.list_(db, third)] == ["L2", "L1"]
+    assert lessons.resolve(db, first) == third  # el alias sigue la cadena completa
+    assert lessons.resolve(db, second) == third
+    assert db.execute("SELECT COUNT(*) FROM lesson").fetchone()[0] == 2
+
+
 def _sample(db, key):
     lessons.record(db, key, LessonDraft(text="Valida entradas", zone=["src/**"]),
                    [origin(1)], "calc")
