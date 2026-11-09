@@ -192,3 +192,79 @@ def test_watch_header_shows_lessons_as_soon_as_counted(env, monkeypatch):
         asyncio.run(scenario())
     finally:
         release.set()
+
+
+# ---------- US5: las lecciones son de la persona, no del repo (T041) ----------
+def _git_status(root):
+    from tests.conftest import git
+    return git(root, "status", "--porcelain").stdout
+
+
+def _open_umbra_in(env, root):
+    from umbra.unified import project
+    project.init_project(root)
+    env.monkeypatch.chdir(root)
+
+
+def test_lessons_stay_out_of_the_repo_and_follow_its_clones(env, tmp_path):
+    from tests.conftest import git
+
+    proposed_lesson(env)
+    before = _git_status(env.root)
+    lesson_json(env, "approve", "L1")
+    assert _git_status(env.root) == before
+
+    clone = tmp_path / "clon"
+    git(tmp_path, "clone", "-q", str(env.root), str(clone))
+    _open_umbra_in(env, clone)
+    _, items = lesson_json(env, "list")
+    assert [(i["id"], i["status"]) for i in items] == [("L1", "approved")]
+
+    other = tmp_path / "otro"
+    other.mkdir()
+    git(other, "init", "-q", "-b", "main")
+    git(other, "config", "user.email", "o@umbra.local")
+    git(other, "config", "user.name", "otro")
+    (other / "b.txt").write_text("otro proyecto\n")
+    git(other, "add", "-A")
+    git(other, "commit", "-q", "-m", "otro")
+    _open_umbra_in(env, other)
+    assert lesson_json(env, "list", "--all")[1] == []
+
+
+def test_export_and_import_bring_lessons_to_another_machine(env, tmp_path):
+    import os
+
+    proposed_lesson(env)
+    lesson_json(env, "approve", "L1", "--text", "Valida siempre las entradas")
+    _, shown = lesson_json(env, "show", "L1")
+
+    to_stdout = env.umbra("lesson", "export").output
+    assert json.loads(to_stdout)["lessons"][0]["text"] == "Valida siempre las entradas"
+    path = tmp_path / "lecciones.json"
+    _, out = lesson_json(env, "export", str(path))
+    assert out == {"path": str(path), "count": 1}
+    assert json.loads(path.read_text(encoding="utf-8"))["schema"] == 1
+
+    home = os.environ["UMBRA_HOME"]
+    for suffix in ("", "-wal", "-shm"):  # otra máquina: sin lessons.db
+        f = os.path.join(home, "lessons.db" + suffix)
+        if os.path.exists(f):
+            os.remove(f)
+    assert lesson_json(env, "list", "--all")[1] == []
+
+    _, out = lesson_json(env, "import", str(path))
+    assert out == {"created": 1, "merged": 0, "origins_added": 1}
+    _, again = lesson_json(env, "show", "L1")
+    for k in ("status", "text", "zone", "updated_at", "origins_detail", "history"):
+        assert again[k] == shown[k]
+    _, out = lesson_json(env, "import", str(path))
+    assert out == {"created": 0, "merged": 1, "origins_added": 0}
+    assert len(lesson_json(env, "list", "--all")[1]) == 1
+    text = env.umbra("lesson", "import", str(path)).output
+    assert "0 nuevas" in text and "1 ya existían" in text
+
+    bad = tmp_path / "malo.json"
+    bad.write_text("{no es json", encoding="utf-8")
+    result, _ = lesson_json(env, "import", str(bad), ok=False)
+    assert result.exit_code != 0 and "JSON" in result.output

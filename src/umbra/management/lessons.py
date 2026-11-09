@@ -6,6 +6,7 @@ propuesta nunca entra en el contexto de una tarea."""
 
 import fnmatch
 import hashlib
+import itertools
 import json
 import re
 import sqlite3
@@ -67,6 +68,10 @@ def open_db() -> sqlite3.Connection:
     return db
 
 
+def _path_key(root: Path) -> str:
+    return "path:" + hashlib.sha256(str(Path(root).resolve()).encode()).hexdigest()
+
+
 def _repo_key(root: Path) -> str:
     try:
         proc = subprocess.run(["git", "rev-list", "--max-parents=0", "HEAD"], cwd=root,
@@ -76,21 +81,80 @@ def _repo_key(root: Path) -> str:
         roots = []
     if roots:
         return min(roots)
-    return "path:" + hashlib.sha256(str(Path(root).resolve()).encode()).hexdigest()
+    return _path_key(root)
 
 
-def project_key(roots) -> str:
-    """Repo: su primer commit. Espacio: hash de las claves de sus repos. Sin commits: la ruta."""
-    keys = sorted(_repo_key(Path(r)) for r in roots)
+def _combine(keys) -> str:
+    keys = sorted(keys)
     if len(keys) == 1:
         return keys[0]
     return "space:" + hashlib.sha256("\n".join(keys).encode()).hexdigest()
 
 
+def project_key(roots) -> str:
+    """Repo: su primer commit. Espacio: hash de las claves de sus repos. Sin commits: la ruta."""
+    return _combine(_repo_key(Path(r)) for r in roots)
+
+
+def _former_keys(roots) -> tuple[str, list[str]]:
+    """La clave vigente y todas las que pudo tener antes el mismo conjunto de repos: cada repo
+    con commits pudo estar sin ellos (clave `path:`), en cualquier combinación."""
+    keys = [_repo_key(Path(r)) for r in roots]
+    current = _combine(keys)
+    choices = [(k,) if k.startswith("path:") else (k, _path_key(Path(r)))
+               for r, k in zip(roots, keys, strict=True)]
+    olds = [_combine(c) for c in itertools.product(*choices)]
+    return current, [o for o in dict.fromkeys(olds) if o != current]
+
+
+def migrate(db: sqlite3.Connection, roots) -> str:
+    """Un repo que recibe su primer commit cambia de clave (`path:` → primer commit): sus
+    lecciones pasan a la clave nueva (renumeradas tras las que ya tuviera) y queda un alias.
+    En un espacio se revisan todas las combinaciones de repos que pudieron estar sin commits,
+    así que vale aunque varios reciban su primer commit entre dos consultas. Idempotente.
+    Devuelve la clave vigente sin resolver alias."""
+    current, olds = _former_keys(roots)
+    for old in olds:
+        if old == current or not db.execute(
+                "SELECT 1 FROM lesson WHERE project_key = ? LIMIT 1", (old,)).fetchone():
+            continue
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            offset = db.execute("SELECT COALESCE(MAX(number), 0) FROM lesson WHERE"
+                                " project_key = ?", (current,)).fetchone()[0]
+            moved = [r["number"] for r in db.execute(
+                "SELECT number FROM lesson WHERE project_key = ?", (old,))]
+            for table in ("lesson", "lesson_origin", "lesson_history"):
+                db.execute(f"UPDATE {table} SET project_key = ?, number = number + ? WHERE"
+                           " project_key = ?", (current, offset, old))
+            if offset:
+                for n in moved:
+                    row = _get(db, current, n + offset)
+                    db.execute("UPDATE lesson SET conflicts = ? WHERE project_key = ? AND"
+                               " number = ?", (json.dumps([c + offset for c in json.loads(
+                                   row["conflicts"])]), current, n + offset))
+            db.execute("INSERT OR REPLACE INTO lesson_meta (key, value) VALUES (?, ?)",
+                       (f"alias:{old}", current))
+            # los alias que apuntaban a la clave que acaba de migrar siguen a la nueva
+            db.execute("UPDATE lesson_meta SET value = ? WHERE key LIKE 'alias:%' AND value = ?",
+                       (current, old))
+            db.execute("COMMIT")
+        except BaseException:
+            db.execute("ROLLBACK")
+            raise
+    return current
+
+
 def resolve(db: sqlite3.Connection, key: str) -> str:
-    """La clave vigente: una clave migrada (de ruta a primer commit) apunta a la nueva."""
-    row = db.execute("SELECT value FROM lesson_meta WHERE key = ?", (f"alias:{key}",)).fetchone()
-    return row["value"] if row else key
+    """La clave vigente: una clave migrada (de ruta a primer commit) apunta a la nueva, y se
+    sigue la cadena si la nueva migró a su vez."""
+    for _ in range(16):  # acotado: una cadena de alias nunca debería ser larga ni cíclica
+        row = db.execute("SELECT value FROM lesson_meta WHERE key = ?",
+                         (f"alias:{key}",)).fetchone()
+        if row is None or row["value"] == key:
+            break
+        key = row["value"]
+    return key
 
 
 def redact(text: str) -> str:
@@ -392,6 +456,125 @@ def applicable(db, key: str, files: list[str]) -> list[dict]:
     return out
 
 
+# ---------- exportar e importar (US5) ----------
+EXPORT_SCHEMA = 1
+_ORIGIN_COLS = ("kind", "task", "run_id", "stage", "detail", "event_id", "created_at")
+_HISTORY_COLS = ("action", "actor", "channel", "before", "created_at")
+
+
+def export(db, key: str, project_name: str) -> dict:
+    """Todas las lecciones con su estado, orígenes, historial y fechas. Sin la clave de
+    proyecto: es local de esta máquina."""
+    out = []
+    for r in db.execute("SELECT * FROM lesson WHERE project_key = ? ORDER BY number", (key,)):
+        n = r["number"]
+        out.append({
+            "number": n, "text": r["text"], "zone": json.loads(r["zone"]),
+            "status": r["status"], "conflicts": json.loads(r["conflicts"]),
+            "created_at": r["created_at"], "updated_at": r["updated_at"],
+            "origins": [dict(o) for o in db.execute(
+                f"SELECT {', '.join(_ORIGIN_COLS)} FROM lesson_origin WHERE project_key = ?"
+                " AND number = ? ORDER BY rowid", (key, n))],
+            "history": [dict(h) for h in db.execute(
+                f"SELECT {', '.join(_HISTORY_COLS)} FROM lesson_history WHERE"
+                " project_key = ? AND number = ? ORDER BY rowid", (key, n))]})
+    return {"schema": EXPORT_SCHEMA, "project_name": project_name, "exported_at": now(),
+            "lessons": out}
+
+
+def _check(data) -> list[dict]:
+    if not isinstance(data, dict) or data.get("schema") != EXPORT_SCHEMA:
+        raise LessonError("el archivo no es una exportación de lecciones que umbra entienda "
+                          f"(esquema {EXPORT_SCHEMA})")
+    items = data.get("lessons")
+    if not isinstance(items, list):
+        raise LessonError("el archivo no trae la lista de lecciones")
+    for it in items:
+        ok = (isinstance(it, dict) and isinstance(it.get("number"), int)
+              and isinstance(it.get("text"), str) and it["text"].strip()
+              and it.get("status") in STATUS_ES and isinstance(it.get("zone", []), list)
+              and all(isinstance(z, str) and zone_ok(z) for z in it.get("zone", []))
+              and isinstance(it.get("created_at"), str)
+              and isinstance(it.get("updated_at"), str))
+        if not ok:
+            raise LessonError(f"lección inválida en el archivo: {str(it)[:120]}")
+    return items
+
+
+def import_(db, key: str, data: dict, project_name: str) -> dict:
+    """Trae lecciones exportadas. Una equivalente (mismo texto normalizado y zona) ya existente
+    se fusiona: suma orígenes e historial que falten y conserva el estado local (regla
+    conservadora). Las nuevas toman `L<max+1>` con su estado y fechas, y los conflictos se
+    renumeran. Importar dos veces no duplica nada."""
+    items = _check(data)
+    created = merged = added = 0
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        existing = [(r["number"], memory.normalize(r["text"]), sorted(json.loads(r["zone"])))
+                    for r in db.execute("SELECT number, text, zone FROM lesson WHERE"
+                                        " project_key = ?", (key,))]
+        nxt = max((n for n, _, _ in existing), default=0)
+        mapping: dict[int, int] = {}
+        fresh: set[int] = set()
+        for it in items:
+            text = redact(" ".join(it["text"].split()))[:STORED_CHARS]
+            zone = list(dict.fromkeys(z.replace("\\", "/") for z in it.get("zone", [])))
+            norm = memory.normalize(text)
+            local = next((n for n, t, z in existing if t == norm and z == sorted(zone)), None)
+            if local is None:
+                nxt += 1
+                local = nxt
+                db.execute(
+                    "INSERT INTO lesson (project_key, number, text, zone, status, conflicts,"
+                    " project_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, '[]', ?, ?,"
+                    " ?)", (key, local, text, json.dumps(zone), it["status"], project_name,
+                            it["created_at"], it["updated_at"]))
+                existing.append((local, norm, sorted(zone)))
+                fresh.add(local)
+                created += 1
+            else:
+                merged += 1
+            mapping[it["number"]] = local
+            for o in it.get("origins") or []:
+                cur = db.execute(
+                    "INSERT OR IGNORE INTO lesson_origin (project_key, number, kind, task,"
+                    " run_id, stage, detail, event_id, created_at) VALUES"
+                    " (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (key, local, o["kind"], o.get("task"), o["run_id"], o.get("stage"),
+                     redact(o.get("detail") or "")[:DETAIL_CHARS], o["event_id"],
+                     o["created_at"]))
+                added += cur.rowcount
+            for h in it.get("history") or []:
+                before = redact(h["before"]) if h.get("before") else None
+                if local not in fresh and db.execute(
+                        "SELECT 1 FROM lesson_history WHERE project_key = ? AND number = ? AND"
+                        " action = ? AND actor = ? AND channel = ? AND created_at = ?",
+                        (key, local, h["action"], h["actor"], h["channel"],
+                         h["created_at"])).fetchone():
+                    continue
+                _history(db, key, local, h["action"], h["created_at"], h["actor"],
+                         h["channel"], before)
+        for it in items:  # conflictos, ya con los números locales y en las dos lecciones
+            a = mapping[it["number"]]
+            for c in it.get("conflicts") or []:
+                b = mapping.get(c)
+                if b is None or b == a or not ({a, b} & fresh):
+                    continue
+                for x, y in ((a, b), (b, a)):
+                    row = _get(db, key, x)
+                    db.execute("UPDATE lesson SET conflicts = ? WHERE project_key = ? AND"
+                               " number = ?", (json.dumps(sorted(
+                                   set(json.loads(row["conflicts"])) | {y})), key, x))
+        db.execute("COMMIT")
+    except (sqlite3.IntegrityError, KeyError, TypeError, AttributeError) as e:
+        db.execute("ROLLBACK")
+        raise LessonError(f"el archivo trae datos inválidos ({e!r})") from e
+    except BaseException:
+        db.execute("ROLLBACK")
+        raise
+    return {"created": created, "merged": merged, "origins_added": added}
+
+
 # ---------- cosecha ----------
 def _describe(f: dict) -> str:
     where = f" ({f['file']}:{f.get('line')})" if f.get("file") else ""
@@ -456,7 +639,7 @@ def key_for(engine) -> str | None:
     except (sqlite3.Error, OSError):
         return None
     try:
-        return resolve(db, project_key(_roots(engine)))
+        return resolve(db, migrate(db, _roots(engine)))
     finally:
         db.close()
 
@@ -517,7 +700,7 @@ def harvest(engine, run_ids: list[str] | None = None) -> int:
         return 0
     db = open_db()
     try:
-        key = resolve(db, project_key(_roots(engine)))
+        key = resolve(db, migrate(db, _roots(engine)))
         seen = {(r["run_id"], r["event_id"]) for r in db.execute(
             "SELECT run_id, event_id FROM lesson_origin WHERE project_key = ?", (key,))}
         created = 0

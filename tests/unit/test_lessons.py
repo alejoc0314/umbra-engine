@@ -383,3 +383,157 @@ def test_list_puts_proposals_first_and_hides_closed_by_default():
     item = lessons.list_(db, "k")[0]
     assert set(item) >= {"id", "status", "text", "zone", "origins", "stale", "conflicts",
                          "updated_at"}
+
+
+# ---------- privadas y portables (US5, T042) ----------
+def test_repo_without_commits_keeps_its_lessons_after_the_first_commit(git_repo):
+    db = lessons.open_db()
+    old = lessons.project_key([git_repo])
+    assert old.startswith("path:")
+    lessons.record(db, old, LessonDraft(text="Valida entradas"), [origin(1)], "calc")
+    committed(git_repo)
+    new = lessons.project_key([git_repo])
+    assert not new.startswith("path:")
+    lessons.migrate(db, [git_repo])
+    assert lessons.resolve(db, old) == new
+    assert [i["id"] for i in lessons.list_(db, lessons.resolve(db, new))] == ["L1"]
+    assert db.execute("SELECT COUNT(*) FROM lesson_origin WHERE project_key = ?",
+                      (new,)).fetchone()[0] == 1
+    lessons.migrate(db, [git_repo])  # repetirla no cambia nada
+    assert db.execute("SELECT COUNT(*) FROM lesson").fetchone()[0] == 1
+    assert db.execute("SELECT COUNT(*) FROM lesson WHERE project_key = ?",
+                      (old,)).fetchone()[0] == 0
+
+
+def test_migrate_renumbers_when_the_new_key_already_has_lessons(git_repo):
+    db = lessons.open_db()
+    old = lessons.project_key([git_repo])
+    lessons.record(db, old, LessonDraft(text="Regla vieja"), [origin(1)], "calc")
+    committed(git_repo)
+    new = lessons.project_key([git_repo])
+    lessons.record(db, new, LessonDraft(text="Regla nueva"), [origin(2)], "calc")
+    lessons.migrate(db, [git_repo])
+    rows = db.execute("SELECT number, text FROM lesson WHERE project_key = ? ORDER BY number",
+                      (new,)).fetchall()
+    assert [(r["number"], r["text"]) for r in rows] == [(1, "Regla nueva"), (2, "Regla vieja")]
+    assert db.execute("SELECT number FROM lesson_origin WHERE event_id = 1").fetchone()[0] == 2
+
+
+def _empty_repo(path):
+    path.mkdir()
+    git(path, "init", "-q", "-b", "main")
+    git(path, "config", "user.email", "t@u.l")
+    git(path, "config", "user.name", "t")
+    return path
+
+
+def test_space_keeps_its_lessons_when_two_repos_get_their_first_commit(tmp_path):
+    a, b = _empty_repo(tmp_path / "a"), _empty_repo(tmp_path / "b")
+    db = lessons.open_db()
+    old = lessons.project_key([a, b])
+    assert old.startswith("space:")
+    lessons.record(db, old, LessonDraft(text="Valida entradas"), [origin(1)], "espacio")
+    committed(a)
+    committed(b)  # los dos cambian de clave antes de volver a consultar
+    new = lessons.migrate(db, [a, b])
+    assert new == lessons.project_key([a, b]) and new != old
+    assert lessons.resolve(db, old) == new
+    assert [i["id"] for i in lessons.list_(db, new)] == ["L1"]
+    assert db.execute("SELECT COUNT(*) FROM lesson").fetchone()[0] == 1
+
+
+def test_space_migration_follows_one_repo_at_a_time(tmp_path):
+    a, b = _empty_repo(tmp_path / "a"), _empty_repo(tmp_path / "b")
+    db = lessons.open_db()
+    first = lessons.project_key([a, b])
+    lessons.record(db, first, LessonDraft(text="Valida entradas"), [origin(1)], "espacio")
+    committed(a)
+    second = lessons.migrate(db, [a, b])
+    lessons.record(db, second, LessonDraft(text="No uses floats"), [origin(2)], "espacio")
+    committed(b)
+    third = lessons.migrate(db, [a, b])
+    assert len({first, second, third}) == 3
+    assert [i["id"] for i in lessons.list_(db, third)] == ["L2", "L1"]
+    assert lessons.resolve(db, first) == third  # el alias sigue la cadena completa
+    assert lessons.resolve(db, second) == third
+    assert db.execute("SELECT COUNT(*) FROM lesson").fetchone()[0] == 2
+
+
+def _sample(db, key):
+    lessons.record(db, key, LessonDraft(text="Valida entradas", zone=["src/**"]),
+                   [origin(1)], "calc")
+    lessons.record(db, key, LessonDraft(text="No uses floats", conflicts_with=[1]),
+                   [origin(2)], "calc")
+    lessons.approve(db, key, 1, actor="ana", channel="cli")
+
+
+def _history_count(db, key):
+    return db.execute("SELECT COUNT(*) FROM lesson_history WHERE project_key = ?",
+                      (key,)).fetchone()[0]
+
+
+def test_export_import_keeps_status_origins_dates_and_history():
+    import json
+
+    db = lessons.open_db()
+    _sample(db, "a")
+    data = lessons.export(db, "a", "calc")
+    assert data["schema"] == 1 and "project_key" not in json.dumps(data)
+    before = lessons.show(db, "a", 1)
+    out = lessons.import_(db, "b", data, "calc")
+    assert out == {"created": 2, "merged": 0, "origins_added": 2}
+    after = lessons.show(db, "b", 1)
+    for k in ("status", "text", "zone", "conflicts", "updated_at", "origins_detail", "history"):
+        assert after[k] == before[k]
+    assert lessons.show(db, "b", 2)["conflicts"] == ["L1"]
+    count = _history_count(db, "b")
+    assert lessons.import_(db, "b", data, "calc") == {"created": 0, "merged": 2,
+                                                       "origins_added": 0}
+    assert _history_count(db, "b") == count == _history_count(db, "a")
+
+
+def test_import_remaps_numbers_and_conflicts():
+    db = lessons.open_db()
+    _sample(db, "a")
+    data = lessons.export(db, "a", "calc")
+    lessons.record(db, "b", LessonDraft(text="Otra local"), [origin(9)], "calc")
+    lessons.import_(db, "b", data, "calc")
+    rows = {r["text"]: r for r in lessons.list_(db, "b", all_=True)}
+    assert rows["Valida entradas"]["id"] == "L2" and rows["No uses floats"]["id"] == "L3"
+    assert rows["No uses floats"]["conflicts"] == ["L2"]
+    assert rows["Valida entradas"]["conflicts"] == ["L3"]
+
+
+def test_import_keeps_the_local_status_on_a_clash():
+    db = lessons.open_db()
+    _sample(db, "a")
+    data = lessons.export(db, "a", "calc")
+    lessons.record(db, "b", LessonDraft(text="valida  ENTRADAS", zone=["src/**"]),
+                   [origin(9)], "calc")
+    lessons.discard(db, "b", 1, actor="ana", channel="cli")
+    out = lessons.import_(db, "b", data, "calc")
+    assert out["merged"] == 1 and out["created"] == 1
+    assert lessons.show(db, "b", 1)["status"] == "discarded"
+    assert lessons.show(db, "b", 1)["origins"] == 2
+
+
+def test_import_rejects_unknown_schema_and_redacts():
+    import json
+
+    db = lessons.open_db()
+    with pytest.raises(lessons.LessonError):
+        lessons.import_(db, "b", {"schema": 99, "lessons": []}, "calc")
+    token = "ghp_" + "c" * 36
+    data = {"schema": 1, "lessons": [{
+        "number": 1, "text": f"no subas {token}", "zone": [], "status": "approved",
+        "conflicts": [], "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-02T00:00:00Z",
+        "origins": [{"kind": "human_correction", "task": 1, "run_id": "r", "stage": "ship",
+                     "detail": f"token {token}", "event_id": 1,
+                     "created_at": "2026-01-01T00:00:00Z"}],
+        "history": [{"action": "approved", "actor": "ana", "channel": "cli",
+                     "before": token, "created_at": "2026-01-02T00:00:00Z"}]}]}
+    lessons.import_(db, "b", data, "calc")
+    shown = lessons.show(db, "b", 1)
+    assert token not in json.dumps(shown)
+    assert shown["status"] == "approved" and shown["updated_at"] == "2026-01-02T00:00:00Z"

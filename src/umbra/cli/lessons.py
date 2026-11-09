@@ -1,5 +1,8 @@
 """Comandos `umbra lesson`: la persona decide qué lecciones aprendidas se aplican (spec 035)."""
 
+import json
+from pathlib import Path
+
 import typer
 
 from umbra.cli import context
@@ -110,6 +113,40 @@ def resolve_cmd(a: str = typer.Argument(..., help="L7 o 7"),
     items = _run(as_json, lambda s, ctx: s.lesson_resolve(ctx, a, b))
     emit(items, as_json, lambda c: c.print(
         f"{items[0]['id']} y {items[1]['id']} ya no están en conflicto.", markup=False))
+
+
+@app.command("export")
+def export_cmd(path: Path = typer.Argument(None, help="Archivo de destino (sin él, a pantalla)"),
+               as_json: bool = JsonOpt) -> None:
+    """Exporta las lecciones del proyecto para llevarlas a otra máquina."""
+    data = _run(as_json, lambda s, ctx: s.lesson_export(ctx))
+    text = json.dumps(data, ensure_ascii=False, indent=2)
+    if path is None:
+        typer.echo(text)
+        return
+    try:
+        path.write_text(text + "\n", encoding="utf-8")
+    except OSError as e:
+        fail(f"no se pudo escribir {path}: {e}", as_json=as_json)
+    out = {"path": str(path), "count": len(data["lessons"])}
+    emit(out, as_json, lambda c: c.print(
+        f"{out['count']} lecciones exportadas a {path}.", markup=False, highlight=False))
+
+
+@app.command("import")
+def import_cmd(path: Path = typer.Argument(..., help="Archivo creado con `umbra lesson export`"),
+               as_json: bool = JsonOpt) -> None:
+    """Importa lecciones exportadas: llegan con su estado, origen y fechas."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as e:
+        fail(f"no se pudo leer {path}: {e}", as_json=as_json)
+    except ValueError as e:
+        fail(f"{path} no es un JSON válido ({e})", as_json=as_json)
+    out = _run(as_json, lambda s, ctx: s.lesson_import(ctx, data))
+    emit(out, as_json, lambda c: c.print(
+        f"{out['created']} nuevas, {out['merged']} ya existían, "
+        f"{out['origins_added']} orígenes añadidos.", markup=False, highlight=False))
 
 
 @app.command("harvest")
