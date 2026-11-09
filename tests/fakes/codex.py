@@ -17,7 +17,10 @@ modes = os.environ.get("FAKE_CODEX_MODE", "clean").split(",")
 mode = modes[min(len(calls), len(modes)) - 1]
 last = Path(args[args.index("-o") + 1])
 
-print(json.dumps({"type": "thread.started", "thread_id": "thread-fake"}))
+print(json.dumps({"type": "thread.started", "thread_id": "thread-fake"}), flush=True)
+if mode == "stall":  # se queda colgado, también al retomarlo
+    import time
+    time.sleep(60)
 if mode == "error":
     print(json.dumps({"type": "turn.failed", "error": {"message": "boom"}}))
     sys.exit(1)

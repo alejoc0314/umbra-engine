@@ -1,5 +1,8 @@
 """Interfaz de adaptador: cómo umbra lanza un agente concreto."""
 
+import dataclasses
+import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
@@ -34,6 +37,7 @@ class AgentResult:
     output_tokens: int | None = None
     timed_out: bool = False
     error: str | None = None
+    resumed: bool = False  # se cortó por tiempo y se retomó su misma sesión
 
 
 class Adapter(Protocol):
@@ -44,6 +48,47 @@ class Adapter(Protocol):
 
     def run(self, req: AgentRun) -> AgentResult:
         """Ejecuta el agente sobre el workspace y devuelve el resultado validado."""
+
+
+CONTINUE = ("umbra detuvo tu sesión por tiempo: pasaste demasiado rato sin dar señales de vida o "
+            "llegaste al techo de tu bloque. Continúa exactamente donde quedaste, sin repetir lo "
+            "que ya hiciste, y termina entregando la salida que se te pidió.")
+
+
+def timeout_error(proc, limits) -> str:
+    """Por qué se cortó, en una frase (empieza por «tiempo agotado»: así lo reconoce explain)."""
+    if proc.idle:
+        return f"tiempo agotado: {limits.idle_s() / 60:g} min sin señales de vida"
+    return f"tiempo agotado: llegó al techo de {limits.ceiling_s() / 60:g} min"
+
+
+def first_id(output: str, *keys: str) -> str | None:
+    """El id de sesión que el agente anuncia al arrancar (para retomarla si se corta)."""
+    for line in output.splitlines():
+        if not line.startswith("{"):
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        for key in keys:
+            if isinstance(event, dict) and event.get(key):
+                return str(event[key])
+    return None
+
+
+def resume_on_timeout(run: Callable[["AgentRun"], "AgentResult"], req: "AgentRun",
+                      result: "AgentResult") -> "AgentResult":
+    """Un corte por tiempo con la sesión conocida se retoma una vez, con su contexto: el agente
+    sigue donde iba en lugar de empezar de cero."""
+    if not result.timed_out or not result.session_id or req.resume_session:
+        return result
+    again = run(dataclasses.replace(req, resume_session=result.session_id))
+    again.cost += result.cost
+    again.resumed = True
+    if again.timed_out:
+        again.error = f"{again.error} (también tras retomar la sesión)"
+    return again
 
 
 def render_prompt(envelope: Envelope, commands: list[str]) -> str:

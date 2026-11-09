@@ -224,9 +224,10 @@ REASONS = {
         [("Ver el registro", "umbra log {n}"),
          ("Reintentar la verificación", "umbra retry {n} --from verify")]),
     "agent_timeout": _simple(
-        "El agente superó su tiempo máximo y umbra lo detuvo.",
-        "Cada agente trabaja en un bloque de tiempo y costo acotado, para que una tarea no se "
-        "quede consumiendo sin control.",
+        "El agente se quedó atascado y umbra lo detuvo.",
+        "umbra corta a un agente cuando pasa un buen rato sin dar señales de vida o llega al "
+        "techo de su bloque. Antes de detener la tarea retomó su misma sesión una vez y, si la "
+        "etapa tiene respaldo, probó con otro agente: los dos se quedaron sin tiempo.",
         [("Dividir la tarea en partes más pequeñas", 'umbra task edit {n} -d "..."'),
          ("Ver el límite de tiempo del perfil (max_minutes)", "umbra profile show builder-tdd"),
          ("Reintentar", "umbra retry {n}")]),

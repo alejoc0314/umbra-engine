@@ -23,6 +23,7 @@ class ProcResult:
     exit_code: int
     timed_out: bool
     output: str
+    idle: bool = False  # se cortó por inactividad (sin salida durante `idle_s`), no por el techo
 
 
 def background_kwargs() -> dict:
@@ -52,8 +53,12 @@ def _feed(proc: subprocess.Popen, text: str) -> None:
 
 
 def run_bounded(cmd: list[str] | str, cwd: Path, timeout_s: float, log_path: Path | None = None,
-                stdin: str | None = None, env: dict | None = None) -> ProcResult:
-    """Lista = ejecutable + args (sin shell). String = comando registrado del proyecto (shell)."""
+                stdin: str | None = None, env: dict | None = None,
+                idle_s: float | None = None, append: bool = False) -> ProcResult:
+    """Lista = ejecutable + args (sin shell). String = comando registrado del proyecto (shell).
+
+    `timeout_s` es el techo. Con `idle_s`, además, se corta si el proceso pasa ese tiempo sin
+    escribir nada: un agente que avanza sigue; uno colgado muere antes."""
     kwargs = background_kwargs()  # grupo propio (para matar el árbol) y sin ventana
     shell = isinstance(cmd, str)
     if not shell:
@@ -67,14 +72,16 @@ def run_bounded(cmd: list[str] | str, cwd: Path, timeout_s: float, log_path: Pat
     if stdin is not None:  # en un hilo: un prompt largo bloquearía si el hijo no lee aún
         threading.Thread(target=_feed, args=(proc, stdin), daemon=True).start()
     chunks: list[str] = []
+    last = [time.monotonic()]  # última vez que el proceso escribió algo
     log = None
     if log_path:
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        log = log_path.open("w", encoding="utf-8")
+        log = log_path.open("a" if append else "w", encoding="utf-8")  # a: sesión retomada
 
     def pump() -> None:
         try:
             for line in proc.stdout:
+                last[0] = time.monotonic()
                 chunks.append(line)
                 if log:
                     log.write(line)
@@ -84,18 +91,26 @@ def run_bounded(cmd: list[str] | str, cwd: Path, timeout_s: float, log_path: Pat
 
     reader = threading.Thread(target=pump, daemon=True)
     reader.start()
-    timed_out = False
-    try:
-        proc.wait(timeout=timeout_s)
-    except subprocess.TimeoutExpired:
-        timed_out = True
-        kill_tree(proc.pid)
-        proc.wait()
+    timed_out = idle = False
+    deadline = time.monotonic() + timeout_s
+    while True:
+        try:
+            proc.wait(timeout=min(1.0, max(0.05, deadline - time.monotonic())))
+            break
+        except subprocess.TimeoutExpired:
+            now = time.monotonic()
+            idle = bool(idle_s) and now - last[0] >= idle_s
+            if now >= deadline or idle:
+                timed_out = True
+                kill_tree(proc.pid)
+                proc.wait()
+                break
     reader.join(timeout=5)
     if log:
         log.close()
     out = "".join(chunks)
-    return ProcResult(proc.returncode if not timed_out else -1, timed_out, out)
+    return ProcResult(proc.returncode if not timed_out else -1, timed_out, out,
+                      idle and timed_out)
 
 
 def kill_tree(pid: int) -> None:

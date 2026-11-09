@@ -6,7 +6,15 @@ from pathlib import Path
 
 from pydantic import BaseModel, ValidationError
 
-from umbra.adapters.base import AgentResult, AgentRun, render_prompt
+from umbra.adapters.base import (
+    CONTINUE,
+    AgentResult,
+    AgentRun,
+    first_id,
+    render_prompt,
+    resume_on_timeout,
+    timeout_error,
+)
 from umbra.blocks.process import run_bounded
 from umbra.contracts.envelope import StageOutput
 
@@ -29,12 +37,19 @@ def sandbox_for(actions: list[str]) -> str:
 
 
 def build_command(req: AgentRun, schema_file: Path, last_file: Path) -> list[str]:
-    cmd = ["codex", "exec", "--json", "-s", sandbox_for(req.profile.actions),
-           "--output-schema", str(schema_file), "-o", str(last_file)]
+    sandbox = sandbox_for(req.profile.actions)
+    if req.resume_session:  # retomar la sesión cortada (`resume` no acepta -s: va por config)
+        cmd = ["codex", "exec", "resume", "--json", "-c", f'sandbox_mode="{sandbox}"',
+               "--output-schema", str(schema_file), "-o", str(last_file)]
+    else:
+        cmd = ["codex", "exec", "--json", "-s", sandbox,
+               "--output-schema", str(schema_file), "-o", str(last_file)]
     if req.profile.model:
         cmd += ["-m", req.profile.model]
     if req.profile.reasoning_effort:  # si no, manda la config global del usuario (puede ser "max")
         cmd += ["-c", f'model_reasoning_effort="{req.profile.reasoning_effort}"']
+    if req.resume_session:
+        cmd.append(req.resume_session)
     return [*cmd, "-"]  # prompt por stdin
 
 
@@ -85,16 +100,23 @@ class CodexAdapter:
         return shutil.which("codex") is not None
 
     def run(self, req: AgentRun) -> AgentResult:
+        return resume_on_timeout(self._run, req, self._run(req))
+
+    def _run(self, req: AgentRun) -> AgentResult:
         schema_file = req.log_path.with_suffix(".schema.json")
         last_file = req.log_path.with_suffix(".last.json")
         schema_file.parent.mkdir(parents=True, exist_ok=True)
         schema_file.write_text(json.dumps(strict_schema(req.output_model.model_json_schema())),
                                encoding="utf-8")
+        limits = req.profile.limits
         proc = run_bounded(build_command(req, schema_file, last_file), req.workspace,
-                           timeout_s=req.profile.limits.max_minutes * 60,
-                           log_path=req.log_path, stdin=render(req))
+                           timeout_s=limits.ceiling_s(), idle_s=limits.idle_s(),
+                           log_path=req.log_path,
+                           stdin=CONTINUE if req.resume_session else render(req),
+                           append=bool(req.resume_session))
         if proc.timed_out:
             return AgentResult(ok=False, output=None, timed_out=True, estimated=True,
-                               error=f"tiempo agotado ({req.profile.limits.max_minutes} min)")
+                               session_id=first_id(proc.output, "thread_id"),
+                               error=timeout_error(proc, limits))
         last = last_file.read_text(encoding="utf-8") if last_file.exists() else None
         return parse(proc.output, last, req.output_model)

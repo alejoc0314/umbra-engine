@@ -9,7 +9,15 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ValidationError
 
-from umbra.adapters.base import AgentResult, AgentRun, render_prompt
+from umbra.adapters.base import (
+    CONTINUE,
+    AgentResult,
+    AgentRun,
+    first_id,
+    render_prompt,
+    resume_on_timeout,
+    timeout_error,
+)
 from umbra.blocks.process import run_bounded
 from umbra.contracts.envelope import StageOutput
 
@@ -172,12 +180,13 @@ class ClaudeCodeAdapter:
         return shutil.which("claude") is not None
 
     def run(self, req: AgentRun) -> AgentResult:
-        result = self._run(req)
+        result = resume_on_timeout(self._run, req, self._run(req))
         p = req.profile
         if (not result.ok and not result.timed_out and p.fallback_model
                 and p.fallback_model != p.model and MODEL_LIMIT.search(result.error or "")):
             backup = p.model_copy(update={"model": p.fallback_model, "fallback_model": None})
-            retry = self._run(dataclasses.replace(req, profile=backup, resume_session=None))
+            alt = dataclasses.replace(req, profile=backup, resume_session=None)
+            retry = resume_on_timeout(self._run, alt, self._run(alt))
             retry.cost += result.cost  # lo que gastó el intento que chocó con el límite
             if not retry.ok:
                 retry.error = f"{p.model}: {result.error} · {p.fallback_model}: {retry.error}"
@@ -187,10 +196,14 @@ class ClaudeCodeAdapter:
     def _run(self, req: AgentRun) -> AgentResult:
         commands = req.allowed_commands if {"run_tests", "run_lint"} & set(req.profile.actions) \
             else []
-        proc = run_bounded(build_command(req), req.workspace,
-                           timeout_s=req.profile.limits.max_minutes * 60,
-                           log_path=req.log_path, stdin=render_prompt(req.envelope, commands))
+        limits = req.profile.limits
+        proc = run_bounded(build_command(req), req.workspace, timeout_s=limits.ceiling_s(),
+                           idle_s=limits.idle_s(), log_path=req.log_path,
+                           stdin=CONTINUE if req.resume_session
+                           else render_prompt(req.envelope, commands),
+                           append=bool(req.resume_session))
         if proc.timed_out:
             return AgentResult(ok=False, output=None, timed_out=True,
-                               error=f"tiempo agotado ({req.profile.limits.max_minutes} min)")
+                               session_id=first_id(proc.output, "session_id"),
+                               error=timeout_error(proc, limits))
         return parse_stream(proc.output, req.output_model)

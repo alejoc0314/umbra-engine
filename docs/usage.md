@@ -238,6 +238,18 @@ umbra explain 3                  # por qué está así y qué puedes hacer, con 
 `umbra watch`, el panel «Situación» muestra eso para la tarea seleccionada; `t` alterna entre
 la línea de tiempo narrada y el registro técnico.
 
+**Agentes que se quedan sin tiempo.** umbra no corta a un agente por el reloj mientras avance.
+Lo corta si pasa un buen rato sin dar señales de vida (lo menor entre su `max_minutes` y 10
+minutos; `idle_minutes` en el perfil lo cambia) o si llega al techo de `max_minutes × 3`.
+
+Antes de detener la tarea pasa esto:
+1. umbra retoma la misma sesión del agente una vez, para que siga donde iba en lugar de empezar
+   de cero.
+2. Si la etapa tiene respaldo (en la revisión: si Codex falla, revisa Claude), prueba con ese
+   otro agente.
+
+Solo si todo eso se queda sin tiempo, la tarea se detiene.
+
 | Situación | Qué significa |
 | --- | --- |
 | Borrador / Aceptada / Lista para ejecutar | Aún no se ha ejecutado |

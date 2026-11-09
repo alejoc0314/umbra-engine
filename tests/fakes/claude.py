@@ -66,6 +66,13 @@ elif mode == "delete_test":
     Path("tests/test_calc.py").unlink()
 elif mode == "sleep":
     time.sleep(60)
+elif mode == "stall":  # anuncia su sesión y se queda colgado; retomado, termina el trabajo
+    if "--resume" in sys.argv:
+        calc.write_text("def add(a, b):\n    return a + b\n")
+    else:
+        print(json.dumps({"type": "system", "subtype": "init", "session_id": "sesion-colgada"}),
+              flush=True)
+        time.sleep(60)
 elif mode == "blocked":
     status, questions = "blocked", ["¿Qué debe pasar con números negativos?"]
 elif mode == "unmet":
