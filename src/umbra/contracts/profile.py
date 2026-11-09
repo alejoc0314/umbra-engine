@@ -9,9 +9,24 @@ from pydantic import BaseModel, Field
 ACTIONS = ("read", "search", "edit", "run_tests", "run_lint", "browse", "render", "shell")
 
 
+IDLE_MINUTES = 10  # sin señales de vida durante esto, el agente se da por colgado
+CEILING_FACTOR = 3  # techo de seguridad: max_minutes × esto
+
+
 class Limits(BaseModel):
+    """`max_minutes` es lo que se espera que tarde. El agente se corta si pasa `idle_minutes`
+    sin dar señales de vida (por defecto, lo menor entre `max_minutes` y 10) o si llega al techo
+    de `max_minutes × 3`: uno que avanza no se corta por el reloj."""
+
     max_minutes: float = 20
+    idle_minutes: float | None = None
     max_cost_usd: Decimal = Decimal("2.00")
+
+    def idle_s(self) -> float:
+        return 60 * (self.idle_minutes or min(self.max_minutes, IDLE_MINUTES))
+
+    def ceiling_s(self) -> float:
+        return 60 * self.max_minutes * CEILING_FACTOR
 
 
 class McpServer(BaseModel):

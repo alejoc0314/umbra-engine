@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from umbra.adapters.base import AgentResult, AgentRun
+from umbra.adapters.base import AgentResult, AgentRun, timeout_error
 from umbra.blocks.process import run_bounded
 from umbra.unified.agents import AgentManifest
 
@@ -34,12 +34,13 @@ class ScriptAdapter:
             "output_schema": req.output_model.model_json_schema(),
             "allowed_commands": req.allowed_commands,
         }
-        proc = run_bounded(self.command, req.workspace,
-                           timeout_s=req.profile.limits.max_minutes * 60,
-                           log_path=req.log_path, stdin=json.dumps(payload, ensure_ascii=False))
+        limits = req.profile.limits
+        proc = run_bounded(self.command, req.workspace, timeout_s=limits.ceiling_s(),
+                           idle_s=limits.idle_s(), log_path=req.log_path,
+                           stdin=json.dumps(payload, ensure_ascii=False))
         if proc.timed_out:
             return AgentResult(ok=False, output=None, timed_out=True, estimated=True,
-                               error=f"tiempo agotado ({req.profile.limits.max_minutes} min)")
+                               error=timeout_error(proc, limits))
         lines = [ln for ln in proc.output.splitlines() if ln.strip().startswith("{")]
         if proc.exit_code != 0 or not lines:
             return AgentResult(ok=False, output=None, estimated=True,

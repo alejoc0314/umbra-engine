@@ -774,8 +774,9 @@ class Engine:
             attempt_id, result = self.agent_attempt(run, stage.name, profile, wt,
                                                     feedback=self.decided_feedback(run_id),
                                                     previous=previous, app_url=app_url)
-            if not result.ok and not result.timed_out and stage.fallback_profile:
-                # el agente falló por algo técnico (modelo saturado, sesión): otro perfil revisa
+            if not result.ok and stage.fallback_profile:
+                # el agente falló por algo técnico (modelo saturado, sesión) o se quedó sin
+                # tiempo aun retomando su sesión: otro perfil revisa
                 self.event(run_id, "stage.fallback", stage=stage.name, failed=profile.name,
                            profile=stage.fallback_profile, error=result.error)
                 profile = self.profile(stage.fallback_profile)
@@ -1000,6 +1001,7 @@ class Engine:
             if result.estimated and not result.cost else 0
         self.event(run["id"], "attempt.finished", stage=stage, attempt=attempt_id, ok=result.ok,
                    cost=to_cost(result.cost), unpriced_tokens=unpriced, error=result.error,
+                   resumed=result.resumed,
                    summary=result.output.summary if result.output else None)
         return attempt_id, result
 
