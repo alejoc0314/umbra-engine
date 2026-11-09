@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.28.0 — 2026-11-09
+
 - **Menos tareas detenidas por tiempo**: un agente que avanza ya no se corta por el reloj; se corta
   si pasa un buen rato sin dar señales de vida. Al cortarse, umbra retoma su misma sesión una vez
   y, en la revisión, si Codex se queda sin tiempo revisa Claude. Solo si todo eso falla se detiene.
