@@ -7,6 +7,8 @@ versión publicada.
 
 ## Sin publicar
 
+## v0.29.0 — 2026-11-12
+
 - **El crítico de diseño revisa más cosas**: además de la rúbrica, repasa una lista de chequeo de
   UX (formularios, estados vacíos y de error, textos cortados, tamaños táctiles, color como único
   aviso) con dos criterios nuevos, `formularios` y `contenido`.
