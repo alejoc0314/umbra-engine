@@ -7,6 +7,10 @@ versión publicada.
 
 ## Sin publicar
 
+- **El crítico de diseño revisa más cosas**: además de la rúbrica, repasa una lista de chequeo de
+  UX (formularios, estados vacíos y de error, textos cortados, tamaños táctiles, color como único
+  aviso) con dos criterios nuevos, `formularios` y `contenido`.
+
 ## v0.28.0 — 2026-11-09
 
 - **Menos tareas detenidas por tiempo**: un agente que avanza ya no se corta por el reloj; se corta
