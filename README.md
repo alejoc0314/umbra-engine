@@ -1,25 +1,6 @@
 <div align="center">
 
-```text
-░░▒▒▓▓████████████████████████████████████████████▓▓▒▒░░
-
-      ██╗   ██╗███╗   ███╗██████╗ ██████╗  █████╗
-      ██║   ██║████╗ ████║██╔══██╗██╔══██╗██╔══██╗
-      ██║   ██║██╔████╔██║██████╔╝██████╔╝███████║
-      ██║   ██║██║╚██╔╝██║██╔══██╗██╔══██╗██╔══██║
-      ╚██████╔╝██║ ╚═╝ ██║██████╔╝██║  ██║██║  ██║
-       ╚═════╝ ╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
-
-    ███████╗███╗   ██╗ ██████╗ ██╗███╗   ██╗███████╗
-    ██╔════╝████╗  ██║██╔════╝ ██║████╗  ██║██╔════╝
-    █████╗  ██╔██╗ ██║██║  ███╗██║██╔██╗ ██║█████╗
-    ██╔══╝  ██║╚██╗██║██║   ██║██║██║╚██╗██║██╔══╝
-    ███████╗██║ ╚████║╚██████╔╝██║██║ ╚████║███████╗
-    ╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝╚══════╝
-
-░░▒▒▓▓████████████████████████████████████████████▓▓▒▒░░
-   Unified · Management · Blocks · Routines · Actions
-```
+<img src="docs/banner.svg" width="100%" alt="UMBRA ENGINE — Unified · Management · Blocks · Routines · Actions">
 
 **Orquestador de agentes de IA 100% de terminal:**
 **de la spec a la PR, con evidencia y aprobación humana.**
@@ -39,9 +20,9 @@ un manifiesto). Cada tarea corre en su propio worktree, deja evidencia verificab
 integra sin tu aprobación**.
 
 ```text
- idea ─▶ spec ─▶ tareas ─▶ PLAN ─▶ DESIGN ─▶ BUILD ─▶ REVIEW ─▶ VERIFY ─▶ SCAN ─▶ SHIP ─▶ tú apruebas ─▶ merge
-                                               ▲                  │
-                                               └─── hallazgos ────┘   (máx. 2 ciclos; luego te pregunta)
+ spec ─▶ tareas ─▶ PLAN ─▶ DESIGN ─▶ BUILD ─▶ REVIEW ─▶ VERIFY ─▶ SCAN ─▶ SHIP ─▶ tú apruebas
+                                       ▲                  │
+                                       └──────────────────┘  hallazgos: vuelve a BUILD (máx. 2 ciclos)
 ```
 
 ## Empezar en un minuto
