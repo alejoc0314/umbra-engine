@@ -1,25 +1,6 @@
 <div align="center">
 
-```text
-░░▒▒▓▓████████████████████████████████████████████▓▓▒▒░░
-
-      ██╗   ██╗███╗   ███╗██████╗ ██████╗  █████╗
-      ██║   ██║████╗ ████║██╔══██╗██╔══██╗██╔══██╗
-      ██║   ██║██╔████╔██║██████╔╝██████╔╝███████║
-      ██║   ██║██║╚██╔╝██║██╔══██╗██╔══██╗██╔══██║
-      ╚██████╔╝██║ ╚═╝ ██║██████╔╝██║  ██║██║  ██║
-       ╚═════╝ ╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
-
-    ███████╗███╗   ██╗ ██████╗ ██╗███╗   ██╗███████╗
-    ██╔════╝████╗  ██║██╔════╝ ██║████╗  ██║██╔════╝
-    █████╗  ██╔██╗ ██║██║  ███╗██║██╔██╗ ██║█████╗
-    ██╔══╝  ██║╚██╗██║██║   ██║██║██║╚██╗██║██╔══╝
-    ███████╗██║ ╚████║╚██████╔╝██║██║ ╚████║███████╗
-    ╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝╚══════╝
-
-░░▒▒▓▓████████████████████████████████████████████▓▓▒▒░░
-   Unified · Management · Blocks · Routines · Actions
-```
+<img src="docs/banner.svg" width="100%" alt="UMBRA ENGINE — Unified · Management · Blocks · Routines · Actions">
 
 **Orquestador de agentes de IA 100% de terminal:**
 **de la spec a la PR, con evidencia y aprobación humana.**
@@ -39,9 +20,9 @@ un manifiesto). Cada tarea corre en su propio worktree, deja evidencia verificab
 integra sin tu aprobación**.
 
 ```text
- idea ─▶ spec ─▶ tareas ─▶ PLAN ─▶ DESIGN ─▶ BUILD ─▶ REVIEW ─▶ VERIFY ─▶ SCAN ─▶ SHIP ─▶ tú apruebas ─▶ merge
-                                               ▲                  │
-                                               └─── hallazgos ────┘   (máx. 2 ciclos; luego te pregunta)
+ spec ─▶ tareas ─▶ PLAN ─▶ DESIGN ─▶ BUILD ─▶ REVIEW ─▶ VERIFY ─▶ SCAN ─▶ SHIP ─▶ tú apruebas
+                                       ▲                  │
+                                       └──────────────────┘  hallazgos: vuelve a BUILD (máx. 2 ciclos)
 ```
 
 ## Empezar en un minuto
@@ -50,12 +31,42 @@ integra sin tu aprobación**.
 uv tool install git+https://github.com/alejoc0314/umbra-engine
 umbra doctor && umbra init          # comprueba git, gh, claude y codex; configura el repo
 umbra spec new "mi idea"            # conversación guiada: spec → plan → tareas
-umbra run 1 && umbra watch          # el agente trabaja en segundo plano; tú miras el panel
-umbra approve 1                     # revisas evidencia y diff, y se integra
+umbra watch                         # ⭐ tu centro de mando: desde aquí ves, ejecutas y apruebas todo
 ```
 
 Necesitas `git`, `gh` y al menos un agente (`claude` o `codex`) con sesión iniciada. umbra no
 guarda credenciales: usa tus logins.
+
+## 🖥️ `umbra watch`: trabaja desde un solo panel
+
+**`umbra watch` es la forma más útil de usar umbra.** Abre un panel en vivo en tu terminal donde
+ves qué hace cada agente y decides con una tecla, sin memorizar comandos ni saltar entre
+ventanas. Los comandos sueltos siguen ahí para scripts y para cuando prefieras escribirlos.
+
+**Lo que ves**
+- **Tareas ordenadas por atención**: `⚠` te necesita · `▶` trabajando · `·` pendiente · `✓`
+  terminada. Cada fila muestra el progreso por etapa, el costo y el tiempo.
+- **Cabecera del proyecto**: si el worker está vivo, la cola, el gasto y cuántas tareas te esperan.
+- **Situación**: qué pasó con la tarea seleccionada, por qué y qué puedes hacer, en lenguaje llano.
+- **Panel a la carta**: la línea de tiempo narrada, la **evidencia** (`e`), los **cambios**
+  archivo por archivo (`d`), lo que el **agente** lee, edita y ejecuta en este momento (`g`) y
+  lo **aprendido** en el repo (`m`).
+
+**Lo que haces, con una tecla**
+
+| Tecla | Acción | Tecla | Acción |
+| --- | --- | --- | --- |
+| `a` | Aceptar el borrador o autorizar | `A` | Aprobar e integrar, con evidencia |
+| `r` | Ejecutar, reintentar o responder al agente | `R` | Rechazar con motivo |
+| `o` | Abrirla en tu editor y arreglarla tú | `I` | Integrar la spec completa |
+| `s` | Abrir una conversación de spec | `N` | Modo noche: encolar todo |
+| `p` · `c` | Pausar · cancelar | `Ctrl+P` · `?` | Paleta de comandos · ayuda |
+
+- Cada tecla ejecuta exactamente lo mismo que su comando y te lo muestra al terminar. El pie de
+  pantalla solo ofrece lo que aplica a esa tarea, y las confirmaciones vienen con «No» marcado.
+- **`umbra watch --all`**: todos tus repos en una lista. `Enter` entra en uno y `P` vuelve.
+- Te avisa en pantalla cuando una tarea te necesita (con el panel cerrado, el aviso llega al
+  escritorio). Trae temas oscuro y claro.
 
 ## Qué hace hoy
 
@@ -77,9 +88,7 @@ guarda credenciales: usa tus logins.
   y revisor no se ponen de acuerdo, un árbitro decide.
 
 ### 👀 Control total desde la terminal
-- **`umbra watch`**: panel en vivo ordenado por atención, con progreso por etapa, costo,
-  línea de tiempo narrada, evidencia, diff y lo que hace el agente en este momento. Todo se
-  maneja con teclas o con la paleta (`Ctrl+P`). Trae temas.
+- **`umbra watch`**: el panel donde ves y decides todo (ver más arriba).
 - **`umbra explain N`**: qué pasó, por qué y qué puedes hacer, con los comandos.
 - **Arréglalo tú**: `umbra open N` abre la tarea en tu editor y `umbra done N` sigue el ciclo
   con tu commit.
